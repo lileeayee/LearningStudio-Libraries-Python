@@ -1,0 +1,1012 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>learningstudio.grades.service &mdash; LearningStudio API 1.0 documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '1.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="LearningStudio API 1.0 documentation" href="../../../index.html" />
+    <link rel="up" title="Module code" href="../../index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../index.html">LearningStudio API 1.0 documentation</a> &raquo;</li>
+          <li><a href="../../index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for learningstudio.grades.service</h1><div class="highlight"><pre>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">LearningStudio RESTful API Libraries </span>
+<span class="sd">These libraries make it easier to use the LearningStudio Course APIs.</span>
+<span class="sd">Full Documentation is provided with the library. </span>
+
+<span class="sd">Need Help or Have Questions? </span>
+<span class="sd">Please use the PDN Developer Community at https://community.pdn.pearson.com</span>
+
+<span class="sd">:category   LearningStudio Course APIs</span>
+<span class="sd">:author     Wes Williams &lt;wes.williams@pearson.com&gt;</span>
+<span class="sd">:author     Pearson Developer Services Team &lt;apisupport@pearson.com&gt;</span>
+<span class="sd">:copyright  2014 Pearson Education Inc.</span>
+<span class="sd">:license    http://www.apache.org/licenses/LICENSE-2.0  Apache 2.0</span>
+<span class="sd">:version    1.0</span>
+
+<span class="sd">Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
+<span class="sd">you may not use this file except in compliance with the License.</span>
+<span class="sd">You may obtain a copy of the License at</span>
+
+<span class="sd">    http://www.apache.org/licenses/LICENSE-2.0</span>
+
+<span class="sd">Unless required by applicable law or agreed to in writing, software</span>
+<span class="sd">distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="sd">WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="sd">See the License for the specific language governing permissions and</span>
+<span class="sd">limitations under the License.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">service</span>
+<span class="sd">-------</span>
+
+<span class="sd">Defines a class that implements :class:`learningstudio.core.service.BasicService` for the Grades API.</span>
+
+
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">from</span> <span class="nn">learningstudio.core.service</span> <span class="kn">import</span> <span class="n">BasicService</span><span class="p">,</span> <span class="n">HttpStatusCode</span>
+<span class="kn">from</span> <span class="nn">learningstudio.oauth.util</span> <span class="kn">import</span> <span class="n">json_loads</span>
+
+<span class="n">PATH_COURSES_GRADEBOOK__CUSTOMCATEGORIES</span> <span class="o">=</span> <span class="s">&#39;/courses/</span><span class="si">%s</span><span class="s">/gradebook/customCategories&#39;</span>
+<span class="n">PATH_COURSES_GRADEBOOK__CUSTOMCATEGORIES_</span> <span class="o">=</span> <span class="s">&#39;/courses/</span><span class="si">%s</span><span class="s">/gradebook/customCategories/</span><span class="si">%s</span><span class="s">&#39;</span>
+<span class="n">PATH_COURSES_GRADEBOOK__CUSTOMCATEGORIES_CUSTOMITEMS</span> <span class="o">=</span> <span class="s">&#39;/courses/</span><span class="si">%s</span><span class="s">/gradebook/customCategories/</span><span class="si">%s</span><span class="s">/customItems&#39;</span>
+<span class="n">PATH_COURSES_GRADEBOOK__CUSTOMCATEGORIES_CUSTOMITEMS_</span> <span class="o">=</span> <span class="s">&#39;/courses/</span><span class="si">%s</span><span class="s">/gradebook/customCategories/</span><span class="si">%s</span><span class="s">/customItems/</span><span class="si">%s</span><span class="s">&#39;</span>
+<span class="n">PATH_COURSES_GRADEBOOK__CUSTOMCATEGORIES_CUSTOMITEMS_GRADEBOOKITEM</span> <span class="o">=</span> <span class="s">&#39;/courses/</span><span class="si">%s</span><span class="s">/gradebook/customCategories/</span><span class="si">%s</span><span class="s">/customItems/</span><span class="si">%s</span><span class="s">/gradebookItem&#39;</span>
+<span class="n">PATH_COURSES_GRADEBOOKITEMS</span> <span class="o">=</span> <span class="s">&#39;/courses/</span><span class="si">%s</span><span class="s">/gradebookItems&#39;</span>
+<span class="n">PATH_COURSES_GRADEBOOKITEMS_</span> <span class="o">=</span> <span class="s">&#39;/courses/</span><span class="si">%s</span><span class="s">/gradebookItems/</span><span class="si">%s</span><span class="s">&#39;</span>
+<span class="n">PATH_COURSES_GRADEBOOK__GRADEBOOKITEMS_</span> <span class="o">=</span> <span class="s">&#39;/courses/</span><span class="si">%s</span><span class="s">/gradebook/gradebookItems/</span><span class="si">%s</span><span class="s">&#39;</span>
+<span class="n">PATH_COURSES_GRADEBOOKITEMS_GRADES</span> <span class="o">=</span> <span class="s">&#39;/courses/</span><span class="si">%s</span><span class="s">/gradebookItems/</span><span class="si">%s</span><span class="s">/grades&#39;</span>
+<span class="n">PATH_COURSES_GRADEBOOKITEMS_GRADES_</span> <span class="o">=</span> <span class="s">&#39;/courses/</span><span class="si">%s</span><span class="s">/gradebookItems/</span><span class="si">%s</span><span class="s">/grades/</span><span class="si">%s</span><span class="s">&#39;</span>
+<span class="n">PATH_USERS_COURSES_GRADEBOOKITEMS_GRADE</span> <span class="o">=</span> <span class="s">&#39;/users/</span><span class="si">%s</span><span class="s">/courses/</span><span class="si">%s</span><span class="s">/gradebookItems/</span><span class="si">%s</span><span class="s">/grade&#39;</span>
+<span class="n">PATH_USERS_COURSES_USERGRADEBOOKITEMS</span> <span class="o">=</span> <span class="s">&#39;/users/</span><span class="si">%s</span><span class="s">/courses/</span><span class="si">%s</span><span class="s">/userGradebookItems&#39;</span>
+<span class="n">PATH_USERS_COURSES_USERGRADEBOOKITEMS__EXPANDGRADE</span> <span class="o">=</span> <span class="n">PATH_USERS_COURSES_USERGRADEBOOKITEMS</span><span class="o">+</span><span class="s">&#39;?expand=grade&#39;</span>
+<span class="n">PATH_USERS_COURSES_USERGRADEBOOKITEMS__USESOURCEDOMAIN</span> <span class="o">=</span> <span class="n">PATH_USERS_COURSES_USERGRADEBOOKITEMS</span><span class="o">+</span><span class="s">&#39;?UseSourceDomain=true&#39;</span>
+<span class="n">PATH_USERS_COURSES_USERGRADEBOOKITEMS__USESOURCEDOMAIN_EXPANDGRADE</span> <span class="o">=</span> <span class="n">PATH_USERS_COURSES_USERGRADEBOOKITEMS</span><span class="o">+</span><span class="s">&#39;?UseSourceDomain=true&amp;expand=grade&#39;</span>
+<span class="n">PATH_USERS_COURSES_GRADEBOOK__GRADEBOOKITEMS_GRADE</span> <span class="o">=</span> <span class="s">&#39;/users/</span><span class="si">%s</span><span class="s">/courses/</span><span class="si">%s</span><span class="s">/gradebook/gradebookItems/</span><span class="si">%s</span><span class="s">/grade&#39;</span>
+<span class="n">PATH_USERS_COURSES_GRADEBOOK__GRADEBOOKITEMS_GRADE__USESOURCEDOMAIN</span> <span class="o">=</span> <span class="s">&#39;/users/</span><span class="si">%s</span><span class="s">/courses/</span><span class="si">%s</span><span class="s">/gradebook/gradebookItems/</span><span class="si">%s</span><span class="s">/grade?UseSourceDomain=true&#39;</span>
+<span class="n">PATH_USERS_COURSES_GRADEBOOK__GRADEBOOKITEMS</span> <span class="o">=</span> <span class="s">&#39;/users/</span><span class="si">%s</span><span class="s">/courses/</span><span class="si">%s</span><span class="s">/gradebook/userGradebookItems&#39;</span>
+<span class="n">PATH_USERS_COURSES_GRADEBOOK__GRADEBOOKITEMS__USESOURCEDOMAIN</span> <span class="o">=</span> <span class="s">&#39;/users/</span><span class="si">%s</span><span class="s">/courses/</span><span class="si">%s</span><span class="s">/gradebook/userGradebookItems?UseSourceDomain=true&#39;</span>
+<span class="n">PATH_USERS_COURSES_COURSEGRADETODATE</span> <span class="o">=</span> <span class="s">&#39;/users/</span><span class="si">%s</span><span class="s">/courses/</span><span class="si">%s</span><span class="s">/coursegradetodate&#39;</span>
+<span class="n">PATH_COURSES_GRADEBOOK__ROSTERCOURSEGRADESTODATE__STUDENTIDS_</span> <span class="o">=</span> <span class="s">&#39;/courses/</span><span class="si">%s</span><span class="s">/gradebook/rostercoursegradestodate?Student.ID=</span><span class="si">%s</span><span class="s">&#39;</span>
+<span class="n">PATH_COURSES_GRADEBOOK__ROSTERCOURSEGRADESTODATE__OFFSET_LIMIT_</span> <span class="o">=</span> <span class="s">&#39;/courses/</span><span class="si">%s</span><span class="s">/gradebook/rostercoursegradestodate?offset=</span><span class="si">%s</span><span class="s">&amp;limit=</span><span class="si">%s</span><span class="s">&#39;</span>
+<span class="n">PATH_COURSES_GRADEBOOK__ROSTERCOURSEGRADESTODATE__STUDENTIDS_OFFSET_LIMIT_</span> <span class="o">=</span> <span class="s">&#39;/courses/</span><span class="si">%s</span><span class="s">/gradebook/rostercoursegradestodate?Student.ID=</span><span class="si">%s</span><span class="s">&amp;offset=</span><span class="si">%s</span><span class="s">&amp;limit=</span><span class="si">%s</span><span class="s">&#39;</span>
+<span class="n">PATH_USERS_COURSES_GRADEBOOK__USERGRADEBOOKITEMS</span> <span class="o">=</span> <span class="s">&#39;/users/</span><span class="si">%s</span><span class="s">/courses/</span><span class="si">%s</span><span class="s">/gradebook/userGradebookItems&#39;</span>
+<span class="n">PATH_USERS_COURSES_GRADEBOOK__USERGRADEBOOKITEMS_</span> <span class="o">=</span> <span class="s">&#39;/users/</span><span class="si">%s</span><span class="s">/courses/</span><span class="si">%s</span><span class="s">/gradebook/userGradebookItems/</span><span class="si">%s</span><span class="s">&#39;</span>
+<span class="n">PATH_USERS_COURSES_GRADEBOOK__USERGRADEBOOKITEMS_EXPANDGRADE</span> <span class="o">=</span> <span class="n">PATH_USERS_COURSES_GRADEBOOK__USERGRADEBOOKITEMS_</span><span class="o">+</span><span class="s">&#39;?expand=grade&#39;</span>
+<span class="n">PATH_USERS_COURSES_GRADEBOOK__USERGRADEBOOKITEMSTOTAL</span> <span class="o">=</span> <span class="s">&#39;/users/</span><span class="si">%s</span><span class="s">/courses/</span><span class="si">%s</span><span class="s">/gradebook/userGradebookItemsTotals&#39;</span>
+
+<div class="viewcode-block" id="GradeService"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.grades.service.GradeService">[docs]</a><span class="k">class</span> <span class="nc">GradeService</span><span class="p">(</span><span class="n">BasicService</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;An implementation of BasicService for handling the Grades API.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">oauth_service_factory</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">GradeService</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">oauth_service_factory</span><span class="p">)</span>
+        
+    <span class="k">def</span> <span class="nf">__getServiceIdentifier</span><span class="p">():</span>
+        <span class="k">return</span> <span class="s">&quot;LS-Library-Exam-Python-V1&quot;</span>
+
+<div class="viewcode-block" id="GradeService.createCustomGradebookCategoryAndItem"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.grades.service.GradeService.createCustomGradebookCategoryAndItem">[docs]</a>    <span class="k">def</span> <span class="nf">createCustomGradebookCategoryAndItem</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">customCategory</span><span class="p">,</span> 
+                                             <span class="n">customItem</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Create custom category and item with</span>
+<span class="sd">        ``POST /courses/{courseId}/gradebook/customCategories``</span>
+<span class="sd">        ``POST /courses/{courseId}/gradebook/customCategories/{customCategoryId}/customItems``</span>
+<span class="sd">        using OAuth1 or OAuth2 as a teacher, teaching assistance or administrator.</span>
+<span class="sd">        </span>
+<span class="sd">        :param courseId: ID of the course.</span>
+<span class="sd">        :type courseId: str</span>
+<span class="sd">        :param customCategory: Custom category to create.</span>
+<span class="sd">        :type customCategory: str</span>
+<span class="sd">        :param customItem: Custom item to create.</span>
+<span class="sd">        :type customItem: str</span>
+<span class="sd">        </span>
+<span class="sd">        :returns: A :class:`learningstudio.core.Response` object with details of status and content.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">createCustomGradebookCategory</span><span class="p">(</span><span class="n">courseId</span><span class="p">,</span> <span class="n">customCategory</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">response</span><span class="o">.</span><span class="n">isError</span><span class="p">():</span> <span class="k">return</span> <span class="n">response</span>
+
+        <span class="n">customCategoryObject</span> <span class="o">=</span> <span class="n">json_loads</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">getContent</span><span class="p">())</span>
+        <span class="n">customCategoryObject</span> <span class="o">=</span> <span class="n">customCategoryObject</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;customCategory&#39;</span><span class="p">)</span>
+        <span class="n">customCategoryId</span> <span class="o">=</span> <span class="n">customCategoryObject</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;guid&#39;</span><span class="p">)</span>
+
+        <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">createCustomGradebookItem</span><span class="p">(</span><span class="n">courseId</span><span class="p">,</span> <span class="n">customCategoryId</span><span class="p">,</span> <span class="n">customItem</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">response</span><span class="o">.</span><span class="n">isError</span><span class="p">():</span> <span class="k">return</span> <span class="n">response</span>
+        
+        <span class="n">customItemObject</span> <span class="o">=</span> <span class="n">json_loads</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">getContent</span><span class="p">())</span>
+        <span class="n">customItemObject</span> <span class="o">=</span> <span class="n">customItemObject</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;customItem&#39;</span><span class="p">)</span>
+        
+        <span class="n">wrapper</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;customCategory&#39;</span> <span class="p">:</span> <span class="n">customCategoryObject</span><span class="p">,</span> 
+                   <span class="s">&#39;customItem&#39;</span> <span class="p">:</span> <span class="n">customItemObject</span><span class="p">}</span>
+        <span class="n">response</span><span class="o">.</span><span class="n">setContent</span><span class="p">(</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">wrapper</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">response</span>
+    </div>
+<div class="viewcode-block" id="GradeService.createCustomGradebookCategory"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.grades.service.GradeService.createCustomGradebookCategory">[docs]</a>    <span class="k">def</span> <span class="nf">createCustomGradebookCategory</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">customCategory</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Create custom gradebook category for a course with</span>
+<span class="sd">        ``POST /courses/{courseId}/gradebook/customCategories``</span>
+<span class="sd">        using OAuth1 or OAuth2 as a teacher, teaching assistant or administrator.</span>
+<span class="sd">        </span>
+<span class="sd">        :param courseId: ID of the course.</span>
+<span class="sd">        :type courseId: str</span>
+<span class="sd">        :param customCategory: Custom category to create.</span>
+<span class="sd">        :type customCategory: str</span>
+<span class="sd">        </span>
+<span class="sd">        :returns: A :class:`learningstudio.core.Response` object with details of status and content.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        
+        <span class="n">relativeUrl</span> <span class="o">=</span> <span class="n">PATH_COURSES_GRADEBOOK__CUSTOMCATEGORIES</span> <span class="o">%</span> <span class="p">(</span><span class="n">courseId</span><span class="p">,)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doPost</span><span class="p">(</span><span class="n">relativeUrl</span><span class="p">,</span> <span class="n">body</span> <span class="o">=</span> <span class="n">customCategory</span><span class="p">)</span>
+    </div>
+<div class="viewcode-block" id="GradeService.updateCustomGradebookCategory"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.grades.service.GradeService.updateCustomGradebookCategory">[docs]</a>    <span class="k">def</span> <span class="nf">updateCustomGradebookCategory</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">customCategoryId</span><span class="p">,</span> 
+                                      <span class="n">customCategory</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Create custom gradebook category for a course with</span>
+<span class="sd">        ``PUT /courses/{courseId}/gradebook/customCategories/{customCategoryId}``</span>
+<span class="sd">        using OAuth1 or OAuth2 as a teacher, teaching assistant or administrator.</span>
+<span class="sd">        </span>
+<span class="sd">        :param courseId: ID of the course.</span>
+<span class="sd">        :type courseId: str</span>
+<span class="sd">        :param customCategoryId: ID of the custom category.</span>
+<span class="sd">        :type customCategoryId: str</span>
+<span class="sd">        :param customCategory: Custom category to create.</span>
+<span class="sd">        :type customCategory: str</span>
+<span class="sd">        </span>
+<span class="sd">        :returns: A :class:`learningstudio.core.Response` object with details of status and content.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">relativeUrl</span> <span class="o">=</span> <span class="n">PATH_COURSES_GRADEBOOK__CUSTOMCATEGORIES_</span> <span class="o">%</span> <span class="p">(</span><span class="n">courseId</span><span class="p">,</span> <span class="n">customCategoryId</span><span class="p">,)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doPut</span><span class="p">(</span><span class="n">relativeUrl</span><span class="p">,</span> <span class="n">body</span> <span class="o">=</span> <span class="n">customCategory</span><span class="p">)</span>
+    </div>
+<div class="viewcode-block" id="GradeService.deleteCustomGradebookCategory"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.grades.service.GradeService.deleteCustomGradebookCategory">[docs]</a>    <span class="k">def</span> <span class="nf">deleteCustomGradebookCategory</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">customCategoryId</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Delete custom gradebook category for a course with</span>
+<span class="sd">        ``DELETE /courses/{courseId}/gradebook/customCategories/{customCategoryId}``</span>
+<span class="sd">        using OAuth1 or OAuth2 as a teacher, teaching assistant or administrator.</span>
+<span class="sd">        </span>
+<span class="sd">        :param courseId: ID of the course.</span>
+<span class="sd">        :type courseId: str</span>
+<span class="sd">        :param customCategoryId: ID of the custom category.</span>
+<span class="sd">        :type customCategoryId: str</span>
+<span class="sd">        </span>
+<span class="sd">        :returns: A :class:`learningstudio.core.Response` object with details of status and content.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">relativeUrl</span> <span class="o">=</span> <span class="n">PATH_COURSES_GRADEBOOK__CUSTOMCATEGORIES_</span> <span class="o">%</span> <span class="p">(</span><span class="n">courseId</span><span class="p">,</span> <span class="n">customCategoryId</span><span class="p">,)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doDelete</span><span class="p">(</span><span class="n">relativeUrl</span><span class="p">)</span>
+    </div>
+<div class="viewcode-block" id="GradeService.getCustomGradebookCategory"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.grades.service.GradeService.getCustomGradebookCategory">[docs]</a>    <span class="k">def</span> <span class="nf">getCustomGradebookCategory</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">customCategoryId</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get custom gradebook category for a course with</span>
+<span class="sd">        ``GET /courses/{courseId}/gradebook/customCategories/{customCategoryId}``</span>
+<span class="sd">        using OAuth1 or OAuth2 as a student, teacher, teaching assistant or administrator.</span>
+<span class="sd">        </span>
+<span class="sd">        :param courseId: ID of the course.</span>
+<span class="sd">        :type courseId: str</span>
+<span class="sd">        :param customCategoryId: ID of the custom category.</span>
+<span class="sd">        :type customCategoryId: str</span>
+<span class="sd">        </span>
+<span class="sd">        :returns: A :class:`learningstudio.core.Response` object with details of status and content.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">relativeUrl</span> <span class="o">=</span> <span class="n">PATH_COURSES_GRADEBOOK__CUSTOMCATEGORIES_</span> <span class="o">%</span> <span class="p">(</span><span class="n">courseId</span><span class="p">,</span> <span class="n">customCategoryId</span><span class="p">,)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doGet</span><span class="p">(</span><span class="n">relativeUrl</span><span class="p">)</span>
+        </div>
+<div class="viewcode-block" id="GradeService.getCustomGradebookCategories"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.grades.service.GradeService.getCustomGradebookCategories">[docs]</a>    <span class="k">def</span> <span class="nf">getCustomGradebookCategories</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">courseId</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get custom gradebook categories for a course with</span>
+<span class="sd">        ``GET /courses/{courseId}/gradebook/customCategories``</span>
+<span class="sd">        using OAuth1 or OAuth2 as a student, teacher, teaching assistant or administrator.</span>
+<span class="sd">        </span>
+<span class="sd">        :param courseId: ID of the course.</span>
+<span class="sd">        :type courseId: str</span>
+<span class="sd">        </span>
+<span class="sd">        :returns: A :class:`learningstudio.core.Response` object with details of status and content.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">relativeUrl</span> <span class="o">=</span> <span class="n">PATH_COURSES_GRADEBOOK__CUSTOMCATEGORIES</span> <span class="o">%</span> <span class="p">(</span><span class="n">courseId</span><span class="p">,)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doGet</span><span class="p">(</span><span class="n">relativeUrl</span><span class="p">)</span>        
+	</div>
+<div class="viewcode-block" id="GradeService.createCustomGradebookItem"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.grades.service.GradeService.createCustomGradebookItem">[docs]</a>    <span class="k">def</span> <span class="nf">createCustomGradebookItem</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">customCategoryId</span><span class="p">,</span> <span class="n">customItem</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Create custom gradebook item in a custom category for a course with</span>
+<span class="sd">        ``POST /courses/{courseId}/gradebook/customCategories/{customCategoryId}/customItems``</span>
+<span class="sd">        using OAuth1 or OAuth2 as a teacher, teaching assistant or administrator.</span>
+<span class="sd">        </span>
+<span class="sd">        :param courseId: ID of the course.</span>
+<span class="sd">        :type courseId: str</span>
+<span class="sd">        :param customCategoryId: ID of the custom category.</span>
+<span class="sd">        :type customCategoryId: str</span>
+<span class="sd">        :param customItem: Custom item to create.</span>
+<span class="sd">        :type customItem: str</span>
+<span class="sd">        </span>
+<span class="sd">        :returns: A :class:`learningstudio.core.Response` object with details of status and content.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">relativeUrl</span> <span class="o">=</span> <span class="n">PATH_COURSES_GRADEBOOK__CUSTOMCATEGORIES_CUSTOMITEMS</span> <span class="o">%</span> <span class="p">(</span><span class="n">courseId</span><span class="p">,</span> <span class="n">customCategoryId</span><span class="p">,)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doPost</span><span class="p">(</span><span class="n">relativeUrl</span><span class="p">,</span> <span class="n">body</span> <span class="o">=</span> <span class="n">customItem</span><span class="p">)</span>
+	</div>
+<div class="viewcode-block" id="GradeService.deleteCustomGradebookItem"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.grades.service.GradeService.deleteCustomGradebookItem">[docs]</a>    <span class="k">def</span> <span class="nf">deleteCustomGradebookItem</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">customCategoryId</span><span class="p">,</span> <span class="n">customItemId</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Delete custom gradebook item in a custom category for a course with</span>
+<span class="sd">        ``DELETE /courses/{courseId}/gradebook/customCategories/{customCategoryId}/customItems/{customItemId}``</span>
+<span class="sd">        using OAuth1 or OAuth2 as a teacher, teaching assistant or administrator.</span>
+<span class="sd">        </span>
+<span class="sd">        :param courseId: ID of the course.</span>
+<span class="sd">        :type courseId: str</span>
+<span class="sd">        :param customCategoryId: ID of the custom category.</span>
+<span class="sd">        :type customCategoryId: str</span>
+<span class="sd">        :param customItemId: ID of the custom item.</span>
+<span class="sd">        :type customItemId: str</span>
+<span class="sd">        </span>
+<span class="sd">        :returns: A :class:`learningstudio.core.Response` object with details of status and content.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">relativeUrl</span> <span class="o">=</span> <span class="n">PATH_COURSES_GRADEBOOK__CUSTOMCATEGORIES_CUSTOMITEMS_</span> <span class="o">%</span> <span class="p">(</span><span class="n">courseId</span><span class="p">,</span> <span class="n">customCategoryId</span><span class="p">,</span> <span class="n">customItemId</span><span class="p">,)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doDelete</span><span class="p">(</span><span class="n">relativeUrl</span><span class="p">)</span>
+    </div>
+<div class="viewcode-block" id="GradeService.getGradebookCustomItem"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.grades.service.GradeService.getGradebookCustomItem">[docs]</a>    <span class="k">def</span> <span class="nf">getGradebookCustomItem</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">customCategoryId</span><span class="p">,</span> <span class="n">customItemId</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get custom item in a custom gradebook category for a course with</span>
+<span class="sd">        ``GET /courses/{courseId}/gradebook/customCategories/{customCategoryId}/customItems/{customItemId}``</span>
+<span class="sd">        using OAuth1 or OAuth2 as a teacher, teaching assistant or administrator.</span>
+<span class="sd">        </span>
+<span class="sd">        :param courseId: ID of the course.</span>
+<span class="sd">        :type courseId: str</span>
+<span class="sd">        :param customCategoryId: ID of the custom category.</span>
+<span class="sd">        :type customCategoryId: str</span>
+<span class="sd">        :param customItemId: ID of the custom item.</span>
+<span class="sd">        :type customItemId: str</span>
+<span class="sd">        </span>
+<span class="sd">        :returns: A :class:`learningstudio.core.Response` object with details of status and content.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">relativeUrl</span> <span class="o">=</span> <span class="n">PATH_COURSES_GRADEBOOK__CUSTOMCATEGORIES_CUSTOMITEMS_</span> <span class="o">%</span> <span class="p">(</span><span class="n">courseId</span><span class="p">,</span> <span class="n">customCategoryId</span><span class="p">,</span> <span class="n">customItemId</span><span class="p">,)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doGet</span><span class="p">(</span><span class="n">relativeUrl</span><span class="p">)</span>
+    </div>
+<div class="viewcode-block" id="GradeService.getCustomGradebookItem"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.grades.service.GradeService.getCustomGradebookItem">[docs]</a>    <span class="k">def</span> <span class="nf">getCustomGradebookItem</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">customCategoryId</span><span class="p">,</span> <span class="n">customItemId</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get custom gradebook item in a custom category for a course with</span>
+<span class="sd">        ``GET /courses/{courseId}/gradebook/customCategories/{customCategoryId}/customItems/{customItemId}``</span>
+<span class="sd">        using OAuth1 or OAuth2 as a teacher, teaching assistant or administrator.</span>
+<span class="sd">        </span>
+<span class="sd">        :param courseId: ID of the course.</span>
+<span class="sd">        :type courseId: str</span>
+<span class="sd">        :param customCategoryId: ID of the custom category.</span>
+<span class="sd">        :type customCategoryId: str</span>
+<span class="sd">        :param customItemId: ID of the custom item.</span>
+<span class="sd">        :type customItemId: str</span>
+<span class="sd">        </span>
+<span class="sd">        :returns: A :class:`learningstudio.core.Response` object with details of status and content.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">relativeUrl</span> <span class="o">=</span> <span class="n">PATH_COURSES_GRADEBOOK__CUSTOMCATEGORIES_CUSTOMITEMS_GRADEBOOKITEM</span> <span class="o">%</span> <span class="p">(</span><span class="n">courseId</span><span class="p">,</span> <span class="n">customCategoryId</span><span class="p">,</span> <span class="n">customItemId</span><span class="p">,)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doGet</span><span class="p">(</span><span class="n">relativeUrl</span><span class="p">)</span>
+        </div>
+<div class="viewcode-block" id="GradeService.getCustomGradebookItems"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.grades.service.GradeService.getCustomGradebookItems">[docs]</a>    <span class="k">def</span> <span class="nf">getCustomGradebookItems</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">customCategoryId</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get custom gradebook items in a custom category for a course with</span>
+<span class="sd">        ``GET /courses/{courseId}/gradebook/customCategories/{customCategoryId}``</span>
+<span class="sd">        using OAuth1 or OAuth2 as a teacher, teaching assistant or administrator.</span>
+<span class="sd">        </span>
+<span class="sd">        :param courseId: ID of the course.</span>
+<span class="sd">        :type courseId: str</span>
+<span class="sd">        :param customCategoryId: ID of the custom category.</span>
+<span class="sd">        :type customCategoryId: str</span>
+<span class="sd">        </span>
+<span class="sd">        :returns: A :class:`learningstudio.core.Response` object with details of status and content.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">relativeUrl</span> <span class="o">=</span> <span class="n">PATH_COURSES_GRADEBOOK__CUSTOMCATEGORIES_CUSTOMITEMS</span> <span class="o">%</span> <span class="p">(</span><span class="n">courseId</span><span class="p">,</span> <span class="n">customCategoryId</span><span class="p">,)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doGet</span><span class="p">(</span><span class="n">relativeUrl</span><span class="p">)</span>
+	</div>
+<div class="viewcode-block" id="GradeService.getGradebookItems"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.grades.service.GradeService.getGradebookItems">[docs]</a>    <span class="k">def</span> <span class="nf">getGradebookItems</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">courseId</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get gradebook items for a course with</span>
+<span class="sd">        ``GET /courses/{courseId}/gradebookItems``</span>
+<span class="sd">        using OAuth1 or OAuth2 as a student, teacher, teaching assistant or administrator.</span>
+<span class="sd">        </span>
+<span class="sd">        :param courseId: ID of the course</span>
+<span class="sd">        :type courseId: str</span>
+<span class="sd">        </span>
+<span class="sd">        :returns: A :class:`learningstudio.core.Response` object with details of status and content.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">relativeUrl</span> <span class="o">=</span> <span class="n">PATH_COURSES_GRADEBOOKITEMS</span> <span class="o">%</span> <span class="p">(</span><span class="n">courseId</span><span class="p">,)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doGet</span><span class="p">(</span><span class="n">relativeUrl</span><span class="p">)</span>
+    </div>
+<div class="viewcode-block" id="GradeService.getGradebookItem"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.grades.service.GradeService.getGradebookItem">[docs]</a>    <span class="k">def</span> <span class="nf">getGradebookItem</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">gradebookItemId</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get specific gradebook item for a course with</span>
+<span class="sd">        ``GET /courses/{courseId}/gradebookItems/{gradebookItemId}``</span>
+<span class="sd">        using OAuth1 or OAuth2 as a student, teacher, teaching assistant or administrator.</span>
+<span class="sd">        </span>
+<span class="sd">        :param courseId: ID of the course.</span>
+<span class="sd">        :type courseId: str</span>
+<span class="sd">        :param gradebookItemId:	ID of the gradebook item.</span>
+<span class="sd">        :type gradebookItemId: str</span>
+<span class="sd">        </span>
+<span class="sd">        :returns: A :class:`learningstudio.core.Response` object with details of status and content.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">relativeUrl</span> <span class="o">=</span> <span class="n">PATH_COURSES_GRADEBOOKITEMS_</span> <span class="o">%</span> <span class="p">(</span><span class="n">courseId</span><span class="p">,</span> <span class="n">gradebookItemId</span><span class="p">,)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doGet</span><span class="p">(</span><span class="n">relativeUrl</span><span class="p">)</span>
+    
+    <span class="c"># Not Working!!!</span></div>
+<div class="viewcode-block" id="GradeService.createGradebookItem"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.grades.service.GradeService.createGradebookItem">[docs]</a>    <span class="k">def</span> <span class="nf">createGradebookItem</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">gradebookItemId</span><span class="p">,</span> <span class="n">gradebookItem</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Create specific gradebook item for a course with</span>
+<span class="sd">        ``POST /courses/{courseId}/gradebook/gradebookItems/{gradebookItemId}``</span>
+<span class="sd">        using OAuth1 or OAuth2 as a student, teacher, teaching assistant or administrator.</span>
+<span class="sd">        </span>
+<span class="sd">        :param courseId: ID of the course.</span>
+<span class="sd">        :type courseId: str</span>
+<span class="sd">        :param gradebookItemId: ID of the gradebook item.</span>
+<span class="sd">        :type gradebookItemId: str</span>
+<span class="sd">        :param gradebookItem: Details of gradebook item.</span>
+<span class="sd">        :type gradebookItem: str</span>
+<span class="sd">        </span>
+<span class="sd">        :returns: A :class:`learningstudio.core.Response` object with details of status and content.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">relativeUrl</span> <span class="o">=</span> <span class="n">PATH_COURSES_GRADEBOOK__GRADEBOOKITEMS_</span> <span class="o">%</span> <span class="p">(</span><span class="n">courseId</span><span class="p">,</span> <span class="n">gradebookItemId</span><span class="p">,)</span>
+        <span class="n">extraHeaders</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;X-METHOD-OVERRIDE&#39;</span> <span class="p">:</span> <span class="s">&#39;PUT&#39;</span><span class="p">}</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doPost</span><span class="p">(</span><span class="n">relativeUrl</span><span class="p">,</span> <span class="n">body</span> <span class="o">=</span> <span class="n">gradebookItem</span><span class="p">,</span> <span class="n">extraHeaders</span> <span class="o">=</span> <span class="n">extraHeaders</span><span class="p">)</span>
+    </div>
+<div class="viewcode-block" id="GradeService.updateGradebookItem"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.grades.service.GradeService.updateGradebookItem">[docs]</a>    <span class="k">def</span> <span class="nf">updateGradebookItem</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">gradebookItemId</span><span class="p">,</span> <span class="n">gradebookItem</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Update specific gradebook item for a course with</span>
+<span class="sd">        ``PUT /courses/{courseId}/gradebook/gradebookItems/{gradebookItemId}``</span>
+<span class="sd">        using OAuth1 or OAuth2 as a student, teacher, teaching assistant or administrator.</span>
+<span class="sd">        </span>
+<span class="sd">        :param courseId: ID of the course.</span>
+<span class="sd">        :type courseId: str</span>
+<span class="sd">        :param gradebookItemId: ID of the gradebook item.</span>
+<span class="sd">        :type gradebookItemId: str</span>
+<span class="sd">        :param gradebookItem: Details of gradebook item.</span>
+<span class="sd">        :type gradebookItem: str</span>
+<span class="sd">        </span>
+<span class="sd">        :returns: A :class:`learningstudio.core.Response` object with details of status and content.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">relativeUrl</span> <span class="o">=</span> <span class="n">PATH_COURSES_GRADEBOOK__GRADEBOOKITEMS_</span> <span class="o">%</span> <span class="p">(</span><span class="n">courseId</span><span class="p">,</span> <span class="n">gradebookItemId</span><span class="p">,)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doPut</span><span class="p">(</span><span class="n">relativeUrl</span><span class="p">,</span> <span class="n">body</span> <span class="o">=</span> <span class="n">gradebookItem</span><span class="p">)</span>
+    </div>
+<div class="viewcode-block" id="GradeService.getGradebookItemGrades"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.grades.service.GradeService.getGradebookItemGrades">[docs]</a>    <span class="k">def</span> <span class="nf">getGradebookItemGrades</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">gradebookItemId</span><span class="p">,</span>
+                               <span class="n">graded_student_ids</span> <span class="o">=</span> <span class="bp">None</span><span class="p">,</span>
+                               <span class="n">use_source_domain</span> <span class="o">=</span> <span class="bp">None</span><span class="p">,</span>
+                               <span class="n">expand_user</span> <span class="o">=</span> <span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get grades for specific gradebook item in a course with</span>
+<span class="sd">        ``GET /courses/{courseId}/gradebookItems/{gradebookItemId}/grades``</span>
+<span class="sd">        using OAuth1 or OAuth2 as a teacher, teaching assistant or administrator.</span>
+<span class="sd">        </span>
+<span class="sd">        :param courseId: ID of the course.</span>
+<span class="sd">        :type courseId: str</span>
+<span class="sd">        :param gradebookItemId: ID of the gradebook item.</span>
+<span class="sd">        :type gradebookItemId: str</span>
+<span class="sd">        :key graded_student_ids: IDs of graded students. (semicolon separated)</span>
+<span class="sd">        :type graded_student_ids: str</span>
+<span class="sd">        :key use_source_domain: Indicator of whether to include domains in urls.</span>
+<span class="sd">        :type use_source_domain: bool</span>
+<span class="sd">        :key expand_user: Indicator of whether to expand user info.</span>
+<span class="sd">        :type expand_user: bool</span>
+
+<span class="sd">        :returns: A :class:`learningstudio.core.Response` object with details of status and content.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">use_source_domain</span> <span class="o">!=</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__getGradebookItemGrades</span><span class="p">(</span><span class="n">courseId</span><span class="p">,</span> 
+                                                 <span class="n">gradebookItemId</span><span class="p">,</span>
+                                                 <span class="n">graded_student_ids</span><span class="p">,</span> 
+                                                 <span class="n">use_source_domain</span><span class="p">,</span>
+                                                 <span class="n">expand_user</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">relativeUrl</span> <span class="o">=</span> <span class="n">PATH_COURSES_GRADEBOOKITEMS_GRADES</span> <span class="o">%</span> <span class="p">(</span><span class="n">courseId</span><span class="p">,</span> <span class="n">gradebookItemId</span><span class="p">,)</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doGet</span><span class="p">(</span><span class="n">relativeUrl</span><span class="p">)</span>
+	</div>
+    <span class="k">def</span> <span class="nf">__getGradebookItemGrades</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">gradebookItemId</span><span class="p">,</span> 
+                                 <span class="n">gradedStudentIds</span><span class="p">,</span> <span class="n">useSourceDomain</span><span class="p">,</span> 
+                                 <span class="n">expandUser</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get grades for specific gradebook item in a course using parameters with</span>
+<span class="sd">        ``GET /courses/{courseId}/gradebookItems/{gradebookItemId}/grades?gradedStudents={gradedStudentIds}&amp;useSourceDomains=true&amp;expand=user``</span>
+<span class="sd">        using OAuth1 or OAuth2 as a teacher, teaching assistant or administrator.</span>
+<span class="sd">        </span>
+<span class="sd">        :param courseId: ID of the course.</span>
+<span class="sd">        :type courseId: str</span>
+<span class="sd">        :param gradebookItemId:	ID of the gradebook item.</span>
+<span class="sd">        :type gradebookItemId: str</span>
+<span class="sd">        :param gradedStudentIds: ID of students (semicolon separated).</span>
+<span class="sd">        :type gradedStudentIds: str</span>
+<span class="sd">        :param useSourceDomain: Indicator of whether to include domains in urls.</span>
+<span class="sd">        :type useSourceDomain: str</span>
+<span class="sd">        :param expandUser: Indicator of whether to expand user info </span>
+<span class="sd">        :type expandUser: bool</span>
+<span class="sd">        </span>
+<span class="sd">        :returns: A :class:`learningstudio.core.Response` object with details of status and content.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">relativeUrl</span> <span class="o">=</span> <span class="n">PATH_COURSES_GRADEBOOKITEMS_GRADES</span> <span class="o">%</span> <span class="p">(</span><span class="n">courseId</span><span class="p">,</span> <span class="n">gradebookItemId</span><span class="p">,)</span>
+        <span class="k">if</span> <span class="n">gradedStudentIds</span> <span class="o">!=</span> <span class="bp">None</span> <span class="ow">or</span> <span class="n">useSourceDomain</span> <span class="ow">or</span> <span class="n">expandUser</span><span class="p">:</span>
+            <span class="n">relativeUrl</span> <span class="o">+=</span> <span class="s">&#39;?&#39;</span>
+            <span class="n">firstParameter</span> <span class="o">=</span> <span class="bp">True</span>
+            <span class="k">if</span> <span class="n">gradedStudentIds</span> <span class="o">!=</span> <span class="bp">None</span><span class="p">:</span>
+                <span class="n">relativeUrl</span> <span class="o">+=</span> <span class="s">&#39;gradedStudents=&#39;</span> <span class="o">+</span> <span class="n">gradedStudentIds</span>
+                <span class="n">firstParameter</span> <span class="o">=</span> <span class="bp">False</span>
+            <span class="k">if</span> <span class="n">useSourceDomain</span><span class="p">:</span>
+                <span class="k">if</span> <span class="ow">not</span><span class="p">(</span><span class="n">firstParameter</span><span class="p">):</span>
+                    <span class="n">relativeUrl</span> <span class="o">+=</span> <span class="s">&#39;&amp;&#39;</span>
+
+                <span class="n">relativeUrl</span> <span class="o">+=</span> <span class="s">&#39;UseSourceDomain=true&#39;</span>
+                <span class="n">firstParameter</span> <span class="o">=</span> <span class="bp">False</span>
+
+            <span class="k">if</span> <span class="n">expandUser</span><span class="p">:</span>
+                <span class="k">if</span> <span class="ow">not</span><span class="p">(</span><span class="n">firstParameter</span><span class="p">):</span>
+                    <span class="n">relativeUrl</span> <span class="o">+=</span> <span class="s">&#39;&amp;&#39;</span>
+
+                <span class="n">relativeUrl</span> <span class="o">+=</span> <span class="s">&#39;expand=user&#39;</span>
+                <span class="n">firstParameter</span> <span class="o">=</span> <span class="bp">False</span>
+		
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doGet</span><span class="p">(</span><span class="n">relativeUrl</span><span class="p">)</span>
+	
+<div class="viewcode-block" id="GradeService.getGradebookItemGrade"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.grades.service.GradeService.getGradebookItemGrade">[docs]</a>    <span class="k">def</span> <span class="nf">getGradebookItemGrade</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">gradebookItemId</span><span class="p">,</span> <span class="n">gradeId</span><span class="p">,</span>
+                              <span class="n">graded_student_ids</span> <span class="o">=</span> <span class="bp">None</span><span class="p">,</span> <span class="n">use_source_domain</span> <span class="o">=</span> <span class="bp">None</span><span class="p">,</span>
+                              <span class="n">expand_user</span> <span class="o">=</span> <span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get specific grade for an item in a course with</span>
+<span class="sd">        ``GET /courses/{courseId}/gradebookItems/{gradebookItemId}/grades/{gradeId}``</span>
+<span class="sd">        using OAuth1 or OAuth2 as a teacher, teaching assistant or administrator.</span>
+<span class="sd">        </span>
+<span class="sd">        :param courseId: ID of the course.</span>
+<span class="sd">        :type courseId: str</span>
+<span class="sd">        :param gradebookItemId: ID of the gradebook item.</span>
+<span class="sd">        :type gradebookItemId: str</span>
+<span class="sd">        :param gradeId: ID of the grade.</span>
+<span class="sd">        :type gradeId: str</span>
+<span class="sd">        :key graded_student_ids: ID of students (semicolon separated).</span>
+<span class="sd">        :type graded_student_ids: str</span>
+<span class="sd">        :key use_source_domain: Indicator of whether to include domains in urls</span>
+<span class="sd">        :type use_source_domain: bool</span>
+<span class="sd">        :key expand_user: Indicator of whether to expand user info.</span>
+<span class="sd">        :type expand_user: bool</span>
+<span class="sd">        </span>
+<span class="sd">        :returns: A :class:`learningstudio.core.Response` object with details of status and content.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">use_source_domain</span> <span class="o">!=</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__getGradebookItemGrade</span><span class="p">(</span><span class="n">courseId</span><span class="p">,</span> 
+                                                <span class="n">gradebookItemId</span><span class="p">,</span> 
+                                                <span class="n">gradeId</span><span class="p">,</span>
+                                                <span class="n">graded_student_ids</span><span class="p">,</span> 
+                                                <span class="n">use_source_domain</span><span class="p">,</span>
+                                                <span class="n">expand_user</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">relativeUrl</span> <span class="o">=</span> <span class="n">PATH_COURSES_GRADEBOOKITEMS_GRADES_</span> <span class="o">%</span> <span class="p">(</span><span class="n">courseId</span><span class="p">,</span> <span class="n">gradebookItemId</span><span class="p">,</span> <span class="n">gradeId</span><span class="p">,)</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doGet</span><span class="p">(</span><span class="n">relativeUrl</span><span class="p">)</span>
+	</div>
+    <span class="k">def</span> <span class="nf">__getGradebookItemGrade</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">gradebookItemId</span><span class="p">,</span> <span class="n">gradeId</span><span class="p">,</span> 
+                                <span class="n">gradedStudentIds</span><span class="p">,</span> <span class="n">useSourceDomain</span><span class="p">,</span> <span class="n">expandUser</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get specific grade for an item in a course using parameters with</span>
+<span class="sd">        ``GET /courses/{courseId}/gradebookItems/{gradebookItemId}/grades/{gradeId}?gradedStudents={gradedStudentIds}&amp;useSourceDomains=true&amp;expand=user``</span>
+<span class="sd">        using OAuth1 or OAuth2 as a teacher, teaching assistant or administrator.</span>
+<span class="sd">        </span>
+<span class="sd">        :param courseId: ID of the course.</span>
+<span class="sd">        :type courseId: str</span>
+<span class="sd">        :param gradebookItemId: ID of the gradebook item.</span>
+<span class="sd">        :type gradebookItemId: str</span>
+<span class="sd">        :param gradeId: ID of the grade within the gradebook.</span>
+<span class="sd">        :type gradeId: str</span>
+<span class="sd">        :param gradedStudentIds: ID of students (semicolon separated).</span>
+<span class="sd">        :type gradedStudentIds: str</span>
+<span class="sd">        :param useSourceDomain: Indicator of whether to include domains in urls.</span>
+<span class="sd">        :type useSourceDomain: str</span>
+<span class="sd">        :param expandUser: Indicator of whether to expand user info.</span>
+<span class="sd">        :type expandUser: bool</span>
+<span class="sd">	</span>
+<span class="sd">        :returns: A :class:`learningstudio.core.Response` object with details of status and content.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">relativeUrl</span> <span class="o">=</span> <span class="n">PATH_COURSES_GRADEBOOKITEMS_GRADES_</span> <span class="o">%</span> <span class="p">(</span><span class="n">courseId</span><span class="p">,</span> <span class="n">gradebookItemId</span><span class="p">,</span> <span class="n">gradeId</span><span class="p">,)</span>
+        <span class="k">if</span> <span class="n">gradedStudentIds</span> <span class="o">!=</span> <span class="bp">None</span> <span class="ow">or</span> <span class="n">useSourceDomain</span> <span class="ow">or</span> <span class="n">expandUser</span><span class="p">:</span>
+            <span class="n">relativeUrl</span> <span class="o">+=</span> <span class="s">&#39;?&#39;</span>
+            <span class="n">firstParameter</span> <span class="o">=</span> <span class="bp">True</span>
+            <span class="k">if</span> <span class="n">gradedStudentIds</span> <span class="o">!=</span> <span class="bp">None</span><span class="p">:</span>
+                <span class="n">relativeUrl</span> <span class="o">+=</span> <span class="s">&#39;gradedStudents=&#39;</span> <span class="o">+</span> <span class="n">gradedStudentIds</span>
+                <span class="n">firstParameter</span> <span class="o">=</span> <span class="bp">False</span>
+
+            <span class="k">if</span> <span class="n">useSourceDomain</span><span class="p">:</span>
+                <span class="k">if</span> <span class="ow">not</span><span class="p">(</span><span class="n">firstParameter</span><span class="p">):</span>
+                    <span class="n">relativeUrl</span> <span class="o">+=</span> <span class="s">&#39;&amp;&#39;</span>
+
+                <span class="n">relativeUrl</span> <span class="o">+=</span> <span class="s">&#39;UseSourceDomain=true&#39;</span>
+                <span class="n">firstParameter</span> <span class="o">=</span> <span class="bp">False</span>
+
+            <span class="k">if</span> <span class="n">expandUser</span><span class="p">:</span>
+                <span class="k">if</span> <span class="ow">not</span><span class="p">(</span><span class="n">firstParameter</span><span class="p">):</span>
+                    <span class="n">relativeUrl</span> <span class="o">+=</span> <span class="s">&#39;&amp;&#39;</span>
+
+                <span class="n">relativeUrl</span> <span class="o">+=</span> <span class="s">&#39;expand=user&#39;</span>
+                <span class="n">firstParameter</span> <span class="o">=</span> <span class="bp">False</span>
+                    
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doGet</span><span class="p">(</span><span class="n">relativeUrl</span><span class="p">)</span>
+	
+<div class="viewcode-block" id="GradeService.createGradebookItemGrade"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.grades.service.GradeService.createGradebookItemGrade">[docs]</a>    <span class="k">def</span> <span class="nf">createGradebookItemGrade</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">userId</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">gradebookItemId</span><span class="p">,</span> <span class="n">grade</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Create user&#39;s grade for an item in a course with</span>
+<span class="sd">        ``POST /users/{userId}/courses/{courseId}/gradebookItems/{gradebookItemId}/grade``</span>
+<span class="sd">        using OAuth1 or OAuth2 as a teacher, teaching assistant or administrator.</span>
+<span class="sd">        </span>
+<span class="sd">        :param userId: ID of the user.</span>
+<span class="sd">        :type userId: str</span>
+<span class="sd">        :param courseId: ID of the course.</span>
+<span class="sd">        :type courseId: str</span>
+<span class="sd">        :param gradebookItemId: ID of the gradebook item</span>
+<span class="sd">        :type gradebookItemId: str</span>
+<span class="sd">        :param grade: Grade content to be created</span>
+<span class="sd">        :type grade: str</span>
+<span class="sd">        </span>
+<span class="sd">        :returns: A :class:`learningstudio.core.Response` object with details of status and content.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">relativeUrl</span> <span class="o">=</span> <span class="n">PATH_USERS_COURSES_GRADEBOOKITEMS_GRADE</span> <span class="o">%</span> <span class="p">(</span><span class="n">userId</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">gradebookItemId</span><span class="p">,)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doPost</span><span class="p">(</span><span class="n">relativeUrl</span><span class="p">,</span> <span class="n">body</span> <span class="o">=</span> <span class="n">grade</span><span class="p">)</span>
+	</div>
+<div class="viewcode-block" id="GradeService.updateGradebookItemGrade"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.grades.service.GradeService.updateGradebookItemGrade">[docs]</a>    <span class="k">def</span> <span class="nf">updateGradebookItemGrade</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">userId</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">gradebookItemId</span><span class="p">,</span> <span class="n">grade</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Update user&#39;s grade for an item in a course with</span>
+<span class="sd">        ``PUT /users/{userId}/courses/{courseId}/gradebookItems/{gradebookItemId}/grade``</span>
+<span class="sd">        using OAuth1 or OAuth2 as a teacher, teaching assistant or administrator.</span>
+<span class="sd">        </span>
+<span class="sd">        :param userId: ID of the user.</span>
+<span class="sd">        :type userId: str</span>
+<span class="sd">        :param courseId: ID of the course.</span>
+<span class="sd">        :type courseId: str</span>
+<span class="sd">        :param gradebookItemId: ID of the gradebook item.</span>
+<span class="sd">        :type gradebookItemId: str</span>
+<span class="sd">        :param grade: Grade content to be updated.</span>
+<span class="sd">        :type grade: str</span>
+<span class="sd">        </span>
+<span class="sd">        :returns: A :class:`learningstudio.core.Response` object with details of status and content.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">relativeUrl</span> <span class="o">=</span> <span class="n">PATH_USERS_COURSES_GRADEBOOKITEMS_GRADE</span> <span class="o">%</span> <span class="p">(</span><span class="n">userId</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">gradebookItemId</span><span class="p">,)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doPut</span><span class="p">(</span><span class="n">relativeUrl</span><span class="p">,</span> <span class="n">body</span> <span class="o">=</span> <span class="n">grade</span><span class="p">)</span>
+	</div>
+<div class="viewcode-block" id="GradeService.deleteGradebookItemGrade"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.grades.service.GradeService.deleteGradebookItemGrade">[docs]</a>    <span class="k">def</span> <span class="nf">deleteGradebookItemGrade</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">userId</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">gradebookItemId</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Delete user&#39;s grade for an item in a course with</span>
+<span class="sd">        ``DELETE /users/{userId}/courses/{courseId}/gradebookItems/{gradebookItemId}/grade``</span>
+<span class="sd">        using OAuth1 or OAuth2 as a teacher, teaching assistant or administrator.</span>
+<span class="sd">        </span>
+<span class="sd">        :param userId: ID of the user.</span>
+<span class="sd">        :type userId: str</span>
+<span class="sd">        :param courseId: ID of the course.</span>
+<span class="sd">        :type courseId: str</span>
+<span class="sd">        :param gradebookItemId: ID of the gradebook item.</span>
+<span class="sd">        :type gradebookItemId: str</span>
+<span class="sd">        </span>
+<span class="sd">        :returns: A :class:`learningstudio.core.Response` object with details of status and content.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">relativeUrl</span> <span class="o">=</span> <span class="n">PATH_USERS_COURSES_GRADEBOOKITEMS_GRADE</span> <span class="o">%</span> <span class="p">(</span><span class="n">userId</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">gradebookItemId</span><span class="p">,)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doDelete</span><span class="p">(</span><span class="n">relativeUrl</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="GradeService.getUserGradebookItems"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.grades.service.GradeService.getUserGradebookItems">[docs]</a>    <span class="k">def</span> <span class="nf">getUserGradebookItems</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">userId</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span>
+                              <span class="n">use_source_domain</span> <span class="o">=</span> <span class="bp">None</span><span class="p">,</span> <span class="n">expand_grade</span> <span class="o">=</span> <span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get gradebook items for a user in a course with</span>
+<span class="sd">        ``GET /users/{userId}/courses/{courseId}/userGradebookItems``</span>
+<span class="sd">        using OAuth1 or OAuth2 as a student, teacher, teaching assistant or administrator.</span>
+<span class="sd">        </span>
+<span class="sd">        :param userId: ID of the user.</span>
+<span class="sd">        :type userId: str</span>
+<span class="sd">        :param courseId: ID of the course.</span>
+<span class="sd">        :type courseId: str</span>
+<span class="sd">        :key use_source_domain: Flag for using source domain parameter.</span>
+<span class="sd">        :type use_source_domain: bool</span>
+<span class="sd">        :key expand_grade: Flag for using expand domain parameter</span>
+<span class="sd">        :type expand_grade: bool</span>
+<span class="sd">        </span>
+<span class="sd">        :returns: A :class:`learningstudio.core.Response` object with details of status and content.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">use_source_domain</span> <span class="o">!=</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__getUserGradebookItems</span><span class="p">(</span><span class="n">userId</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> 
+                                                <span class="n">use_source_domain</span><span class="p">,</span> <span class="n">expand_grade</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">relativeUrl</span> <span class="o">=</span> <span class="n">PATH_USERS_COURSES_USERGRADEBOOKITEMS</span> <span class="o">%</span> <span class="p">(</span><span class="n">userId</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,)</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doGet</span><span class="p">(</span><span class="n">relativeUrl</span><span class="p">)</span>
+		</div>
+    <span class="k">def</span> <span class="nf">__getUserGradebookItems</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">userId</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">useSourceDomain</span><span class="p">,</span> <span class="n">expandGrade</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get gradebook items for a user in a course with</span>
+<span class="sd">        ``GET /users/{userId}/courses/{courseId}/userGradebookItems``</span>
+<span class="sd">        with optional useSourceDomain and expand parameters</span>
+<span class="sd">        using OAuth1 or OAuth2 as a student, teacher, teaching assistant or administrator.</span>
+<span class="sd">        </span>
+<span class="sd">        :param userId: ID of the user.</span>
+<span class="sd">        :type userId: str</span>
+<span class="sd">        :param courseId: ID of the course.</span>
+<span class="sd">        :type courseId: str</span>
+<span class="sd">        :param useSourceDomain: Flag for using source domain parameter.</span>
+<span class="sd">        :type useSourceDomain: str</span>
+<span class="sd">        :param expandDomain: Flag for using expand domain parameter.</span>
+<span class="sd">        :type expandDomain: bool</span>
+
+<span class="sd">        :returns: A :class:`learningstudio.core.Response` object with details of status and content.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="n">PATH_USERS_COURSES_USERGRADEBOOKITEMS</span>
+        <span class="k">if</span> <span class="n">useSourceDomain</span> <span class="ow">or</span> <span class="n">expandGrade</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">useSourceDomain</span> <span class="ow">and</span> <span class="n">expandGrade</span><span class="p">:</span>
+                <span class="n">path</span> <span class="o">=</span> <span class="n">PATH_USERS_COURSES_USERGRADEBOOKITEMS__USESOURCEDOMAIN_EXPANDGRADE</span>
+            <span class="k">elif</span> <span class="n">useSourceDomain</span><span class="p">:</span>
+                <span class="n">path</span> <span class="o">=</span> <span class="n">PATH_USERS_COURSES_USERGRADEBOOKITEMS__USESOURCEDOMAIN</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">path</span> <span class="o">=</span> <span class="n">PATH_USERS_COURSES_USERGRADEBOOKITEMS__EXPANDGRADE</span>
+		
+        <span class="n">relativeUrl</span> <span class="o">=</span> <span class="n">path</span> <span class="o">%</span> <span class="p">(</span><span class="n">userId</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doGet</span><span class="p">(</span><span class="n">relativeUrl</span><span class="p">)</span>
+	
+<div class="viewcode-block" id="GradeService.createGrade"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.grades.service.GradeService.createGrade">[docs]</a>    <span class="k">def</span> <span class="nf">createGrade</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">userId</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">gradebookItemId</span><span class="p">,</span> <span class="n">grade</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Create a user&#39;s grade for an item in a course with</span>
+<span class="sd">        ``POST /users/{userId}/courses/{courseId}/gradebook/gradebookItems/{gradebookItemId}/grade``</span>
+<span class="sd">        using OAuth1 or OAuth2 as a teacher, teaching assistant or administrator.</span>
+<span class="sd">        </span>
+<span class="sd">        :param userId: ID of the user.</span>
+<span class="sd">        :type userId: str</span>
+<span class="sd">        :param courseId: ID of the course.</span>
+<span class="sd">        :type courseId: str</span>
+<span class="sd">        :param gradebookItemId: ID of the gradebook item.</span>
+<span class="sd">        :type gradebookItemId: str</span>
+<span class="sd">        :param grade: Grade on the exam.</span>
+<span class="sd">        :type grade: str</span>
+<span class="sd">        </span>
+<span class="sd">        :returns: A :class:`learningstudio.core.Response` object with details of status and content.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">relativeUrl</span> <span class="o">=</span> <span class="n">PATH_USERS_COURSES_GRADEBOOK__GRADEBOOKITEMS_GRADE</span> <span class="o">%</span> <span class="p">(</span><span class="n">userId</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">gradebookItemId</span><span class="p">,)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doPost</span><span class="p">(</span><span class="n">relativeUrl</span><span class="p">,</span> <span class="n">body</span> <span class="o">=</span> <span class="n">grade</span><span class="p">)</span>
+	</div>
+<div class="viewcode-block" id="GradeService.updateGrade"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.grades.service.GradeService.updateGrade">[docs]</a>    <span class="k">def</span> <span class="nf">updateGrade</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">userId</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">gradebookItemId</span><span class="p">,</span> <span class="n">grade</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Update a user&#39;s grade for an item in a course with</span>
+<span class="sd">        ``PUT /users/{userId}/courses/{courseId}/gradebook/gradebookItems/{gradebookItemId}/grade``</span>
+<span class="sd">        using OAuth1 or OAuth2 as a teacher, teaching assistant or administrator.</span>
+<span class="sd">        </span>
+<span class="sd">        :param userId: ID of the user.</span>
+<span class="sd">        :type userId: str</span>
+<span class="sd">        :param courseId: ID of the course.</span>
+<span class="sd">        :type courseId: str</span>
+<span class="sd">        :param gradebookItemId: ID of the gradebook item.</span>
+<span class="sd">        :type gradebookItemId: str</span>
+<span class="sd">        :param grade: Grade on the exam.</span>
+<span class="sd">        :type grade: str</span>
+<span class="sd">        </span>
+<span class="sd">        :returns: A :class:`learningstudio.core.Response` object with details of status and content.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">relativeUrl</span> <span class="o">=</span> <span class="n">PATH_USERS_COURSES_GRADEBOOK__GRADEBOOKITEMS_GRADE</span> <span class="o">%</span> <span class="p">(</span><span class="n">userId</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">gradebookItemId</span><span class="p">,)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doPut</span><span class="p">(</span><span class="n">relativeUrl</span><span class="p">,</span> <span class="n">body</span> <span class="o">=</span> <span class="n">grade</span><span class="p">)</span>
+	</div>
+<div class="viewcode-block" id="GradeService.deleteGrade"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.grades.service.GradeService.deleteGrade">[docs]</a>    <span class="k">def</span> <span class="nf">deleteGrade</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">userId</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">gradebookItemId</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Delete a user&#39;s grade for an item in a course with</span>
+<span class="sd">        ``DELETE /users/{userId}/courses/{courseId}/gradebook/gradebookItems/{gradebookItemId}/grade``</span>
+<span class="sd">        using OAuth1 or OAuth2 as a teacher, teaching assistant or administrator.</span>
+<span class="sd">        </span>
+<span class="sd">        :param userId: ID of the user.</span>
+<span class="sd">        :type userId: str</span>
+<span class="sd">        :param courseId: ID of the course.</span>
+<span class="sd">        :type courseId: str</span>
+<span class="sd">        :param gradebookItemId: ID of the gradebook item.</span>
+<span class="sd">        :type gradebookItemId: str</span>
+<span class="sd">        </span>
+<span class="sd">        :returns: A :class:`learningstudio.core.Response` object with details of status and content.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">relativeUrl</span> <span class="o">=</span> <span class="n">PATH_USERS_COURSES_GRADEBOOK__GRADEBOOKITEMS_GRADE</span> <span class="o">%</span> <span class="p">(</span><span class="n">userId</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">gradebookItemId</span><span class="p">,)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doDelete</span><span class="p">(</span><span class="n">relativeUrl</span><span class="p">)</span>
+	</div>
+<div class="viewcode-block" id="GradeService.getGrade"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.grades.service.GradeService.getGrade">[docs]</a>    <span class="k">def</span> <span class="nf">getGrade</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">userId</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">gradebookItemId</span><span class="p">,</span> <span class="n">use_source_domain</span> <span class="o">=</span> <span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get a user&#39;s grade for an item in a course with</span>
+<span class="sd">        ``GET /users/{userId}/courses/{courseId}/gradebook/gradebookItems/{gradebookItemId}/grade``</span>
+<span class="sd">        using OAuth1 or OAuth2 as a teacher, teaching assistant or administrator</span>
+<span class="sd">        </span>
+<span class="sd">        :param userId: ID of the user.</span>
+<span class="sd">        :type userId: str</span>
+<span class="sd">        :param courseId: ID of the course.</span>
+<span class="sd">        :type courseId: str</span>
+<span class="sd">        :param gradebookItemId: ID of the gradebook item.</span>
+<span class="sd">        :type gradebookItemId: str</span>
+<span class="sd">        :key use_source_domain: Flag for using source domain parameter.</span>
+<span class="sd">        :type use_source_domain: bool</span>
+
+<span class="sd">        :returns: A :class:`learningstudio.core.Response` object with details of status and content.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">use_source_domain</span> <span class="o">!=</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__getGrade</span><span class="p">(</span><span class="n">userId</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">gradebookItemId</span><span class="p">,</span> <span class="n">use_source_domain</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">relativeUrl</span> <span class="o">=</span> <span class="n">PATH_USERS_COURSES_GRADEBOOK__GRADEBOOKITEMS_GRADE</span> <span class="o">%</span> <span class="p">(</span><span class="n">userId</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">gradebookItemId</span><span class="p">,)</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doGet</span><span class="p">(</span><span class="n">relativeUrl</span><span class="p">)</span>
+</div>
+    <span class="k">def</span> <span class="nf">__getGrade</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">userId</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">gradebookItemId</span><span class="p">,</span> <span class="n">useSourceDomain</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get a user&#39;s grade for an item in a course with override for useSourceDomain with</span>
+<span class="sd">        ``GET /users/{userId}/courses/{courseId}/gradebook/gradebookItems/{gradebookItemId}/grade``</span>
+<span class="sd">        using OAuth1 or OAuth2 as a teacher, teaching assistant or administrator.</span>
+<span class="sd">        </span>
+<span class="sd">        :param userId: ID of the user.</span>
+<span class="sd">        :type userId: str</span>
+<span class="sd">        :param courseId: ID of the course.</span>
+<span class="sd">        :type courseId: str</span>
+<span class="sd">        :param gradebookItemId: ID of the gradebook item.</span>
+<span class="sd">        :type gradebookItemId: str</span>
+<span class="sd">        :param useSourceDomain: Indicator of whether to include domain in urls.</span>
+<span class="sd">        :type useSourceDomain: bool</span>
+<span class="sd">        </span>
+<span class="sd">        :returns: A :class:`learningstudio.core.Response` object with details of status and content.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="n">PATH_USERS_COURSES_GRADEBOOK__GRADEBOOKITEMS_GRADE__USESOURCEDOMAIN</span> <span class="k">if</span> <span class="n">useSourceDomain</span> <span class="k">else</span> <span class="n">PATH_USERS_COURSES_GRADEBOOK__GRADEBOOKITEMS_GRADE</span>
+        <span class="n">relativeUrl</span> <span class="o">=</span> <span class="n">path</span> <span class="o">%</span> <span class="p">(</span><span class="n">userId</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">gradebookItemId</span><span class="p">,)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doGet</span><span class="p">(</span><span class="n">relativeUrl</span><span class="p">)</span>
+	
+<div class="viewcode-block" id="GradeService.getGrades"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.grades.service.GradeService.getGrades">[docs]</a>    <span class="k">def</span> <span class="nf">getGrades</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">userId</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">use_source_domain</span> <span class="o">=</span> <span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get a user&#39;s grades for a course with</span>
+<span class="sd">        ``GET /users/{userId}/courses/{courseId}/gradebook/userGradebookItems``</span>
+<span class="sd">        using OAuth1 or OAuth2 as a teacher, teaching assistant or administrator.</span>
+<span class="sd">        Using OAuth2, student can also view their own grades (not create/update/delete).</span>
+<span class="sd">        </span>
+<span class="sd">        :param userId: ID of the user.</span>
+<span class="sd">        :type userId: str</span>
+<span class="sd">        :param courseId: ID of the course.</span>
+<span class="sd">        :type courseId: str</span>
+<span class="sd">        :key use_source_domain: Flag for using source domain parameter.</span>
+<span class="sd">        :type use_source_domain: bool</span>
+<span class="sd">        </span>
+<span class="sd">        :returns: A :class:`learningstudio.core.Response` object with details of status and content.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">use_source_domain</span> <span class="o">!=</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__getGrades</span><span class="p">(</span><span class="n">userId</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">use_source_domain</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">relativeUrl</span> <span class="o">=</span> <span class="n">PATH_USERS_COURSES_GRADEBOOK__GRADEBOOKITEMS</span> <span class="o">%</span> <span class="p">(</span><span class="n">userId</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,)</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doGet</span><span class="p">(</span><span class="n">relativeUrl</span><span class="p">)</span>
+</div>
+    <span class="k">def</span> <span class="nf">__getGrades</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">userId</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">useSourceDomain</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get a user&#39;s grades for a course with override for useSourceDomain with</span>
+<span class="sd">        ``GET /users/{userId}/courses/{courseId}/gradebook/userGradebookItems``</span>
+<span class="sd">        using OAuth1 or OAuth2 as a teacher, teaching assistant or administrator.</span>
+<span class="sd">        </span>
+<span class="sd">        :param userId: ID of the user.</span>
+<span class="sd">        :type userId: str</span>
+<span class="sd">        :param courseId: ID of the course.</span>
+<span class="sd">        :type courseId: str</span>
+<span class="sd">        :param useSourceDomain: Indicator of whether to include domain in urls.</span>
+<span class="sd">        :type useSourceDomain: bool</span>
+<span class="sd">        </span>
+<span class="sd">        :returns: A :class:`learningstudio.core.Response` object with details of status and content.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="n">PATH_USERS_COURSES_GRADEBOOK__GRADEBOOKITEMS__USESOURCEDOMAIN</span> <span class="k">if</span> <span class="n">useSourceDomain</span> <span class="k">else</span> <span class="n">PATH_USERS_COURSES_GRADEBOOK__GRADEBOOKITEMS</span>
+        <span class="n">relativeUrl</span> <span class="o">=</span> <span class="n">path</span> <span class="o">%</span> <span class="p">(</span><span class="n">userId</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doGet</span><span class="p">(</span><span class="n">relativeUrl</span><span class="p">)</span>
+        
+	
+<div class="viewcode-block" id="GradeService.getCurrentGrade"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.grades.service.GradeService.getCurrentGrade">[docs]</a>    <span class="k">def</span> <span class="nf">getCurrentGrade</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">userId</span><span class="p">,</span> <span class="n">courseId</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Get a user&#39;s current grades for a course with</span>
+<span class="sd">        ``GET /users/{userId}/courses/{courseId}/coursegradetodate``</span>
+<span class="sd">        using OAuth1 or Auth2 as a student, teacher, teaching assistant or administrator.</span>
+<span class="sd">        </span>
+<span class="sd">        :param userId: ID of the user.</span>
+<span class="sd">        :type userId: str</span>
+<span class="sd">        :param courseId: ID of the course.</span>
+<span class="sd">        :type courseId: str</span>
+<span class="sd">        </span>
+<span class="sd">        :returns: A :class:`learningstudio.core.Response` object with details of status and content.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">relativeUrl</span> <span class="o">=</span> <span class="n">PATH_USERS_COURSES_COURSEGRADETODATE</span> <span class="o">%</span> <span class="p">(</span><span class="n">userId</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doGet</span><span class="p">(</span><span class="n">relativeUrl</span><span class="p">)</span>
+	</div>
+<div class="viewcode-block" id="GradeService.getCurrentGrades"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.grades.service.GradeService.getCurrentGrades">[docs]</a>    <span class="k">def</span> <span class="nf">getCurrentGrades</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">student_ids</span> <span class="o">=</span> <span class="bp">None</span><span class="p">,</span> <span class="n">offset</span> <span class="o">=</span> <span class="bp">None</span><span class="p">,</span> <span class="n">limit</span> <span class="o">=</span> <span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get current grades for all students in a course with</span>
+<span class="sd">        ``GET /courses/{courseId}/gradebook/rostercoursegradestodate?offset={offset}&amp;limit={limit}``</span>
+<span class="sd">        using OAuth1 or Auth2 as a teacher, teaching assistant or administrator.</span>
+<span class="sd">        </span>
+<span class="sd">        :param courseId: ID of course.</span>
+<span class="sd">        :type courseId: str</span>
+<span class="sd">        :key offset: Offset position</span>
+<span class="sd">        :type offset: int</span>
+<span class="sd">        :key limit: Limitation on count of records.</span>
+<span class="sd">        :type limit: int</span>
+<span class="sd">        :key student_ids: Comma-separated list of students to filter.</span>
+<span class="sd">        :type student_ids: str</span>
+<span class="sd">        :returns: A :class:`learningstudio.core.Response` object with details of status and content.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">offset</span> <span class="o">==</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__getCurrentGradesWithoutOffset</span><span class="p">(</span><span class="n">courseId</span><span class="p">,</span> <span class="n">student_ids</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">student_ids</span> <span class="o">!=</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__getCurrentGrades</span><span class="p">(</span><span class="n">courseId</span><span class="p">,</span> <span class="n">student_ids</span><span class="p">,</span> <span class="n">offset</span><span class="p">,</span> <span class="n">limit</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">relativeUrl</span> <span class="o">=</span> <span class="n">PATH_COURSES_GRADEBOOK__ROSTERCOURSEGRADESTODATE__OFFSET_LIMIT_</span> <span class="o">%</span> <span class="p">(</span><span class="n">courseId</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">offset</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">limit</span><span class="p">),)</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doGet</span><span class="p">(</span><span class="n">relativeUrl</span><span class="p">)</span>
+	</div>
+    <span class="k">def</span> <span class="nf">__getCurrentGrades</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">studentIds</span><span class="p">,</span> <span class="n">offset</span><span class="p">,</span> <span class="n">limit</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get current grades for specific students in a course with</span>
+<span class="sd">        ``GET /courses/{courseId}/gradebook/rostercoursegradestodate?Student.ID={studentIds}&amp;offset={offset}&amp;limit={limit}``</span>
+<span class="sd">        using OAuth1 or Auth2 as a teacher, teaching assistant or administrator.</span>
+<span class="sd">        </span>
+<span class="sd">        :param courseId: ID of course.</span>
+<span class="sd">        :type courseId: str</span>
+<span class="sd">        :param studentIds: Comma-separated list of students to filter.</span>
+<span class="sd">        :type studentIds: str</span>
+<span class="sd">        :param offset: Offset position.</span>
+<span class="sd">        :type offset: int</span>
+<span class="sd">        :param limit: Limitation on count of records.</span>
+<span class="sd">        :type limit: int</span>
+<span class="sd">        </span>
+<span class="sd">        :returns: A :class:`learningstudio.core.Response` object with details of status and content.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">relativeUrl</span> <span class="o">=</span> <span class="n">PATH_COURSES_GRADEBOOK__ROSTERCOURSEGRADESTODATE__STUDENTIDS_OFFSET_LIMIT_</span> <span class="o">%</span> <span class="p">(</span><span class="n">courseId</span><span class="p">,</span> <span class="n">studentIds</span><span class="p">,</span> 
+                                                                                                    <span class="nb">str</span><span class="p">(</span><span class="n">offset</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">limit</span><span class="p">),)</span>
+        <span class="k">return</span>  <span class="bp">self</span><span class="o">.</span><span class="n">doGet</span><span class="p">(</span><span class="n">relativeUrl</span><span class="p">)</span>
+	
+    <span class="k">def</span> <span class="nf">__getCurrentGradesWithoutOffset</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">studentIds</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get current grades for specific students in a course with</span>
+<span class="sd">        ``GET /courses/{courseId}/gradebook/rostercoursegradestodate?Student.ID={studentIds}``</span>
+<span class="sd">        using OAuth1 or Auth2 as a teacher, teaching assistant or administrator.</span>
+<span class="sd">        </span>
+<span class="sd">        :param courseId: ID of course.</span>
+<span class="sd">        :type courseId: str</span>
+<span class="sd">        :param studentIds: Comma-separated list of students to filter.</span>
+<span class="sd">        :type studentIds: str</span>
+<span class="sd">        </span>
+<span class="sd">        :returns: A :class:`learningstudio.core.Response` object with details of status and content.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">relativeUrl</span> <span class="o">=</span> <span class="n">PATH_COURSES_GRADEBOOK__ROSTERCOURSEGRADESTODATE__STUDENTIDS_</span> <span class="o">%</span> <span class="p">(</span><span class="n">courseId</span><span class="p">,</span> <span class="n">studentIds</span><span class="p">,)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doGet</span><span class="p">(</span><span class="n">relativeUrl</span><span class="p">)</span>
+	
+<div class="viewcode-block" id="GradeService.getCourseGradebookUserItems"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.grades.service.GradeService.getCourseGradebookUserItems">[docs]</a>    <span class="k">def</span> <span class="nf">getCourseGradebookUserItems</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">userId</span><span class="p">,</span> <span class="n">courseId</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get user gradebook items in a course gradebook with</span>
+<span class="sd">        ``GET /users/{userId}/courses/{courseId}/gradebook/userGradebookItems``</span>
+<span class="sd">        using OAuth1 or Auth2 as a student, teacher, teaching assistant or administrator.</span>
+<span class="sd">        </span>
+<span class="sd">        :param userId: ID of the user.</span>
+<span class="sd">        :type userId: str</span>
+<span class="sd">        :param courseId: ID of the course.</span>
+<span class="sd">        :type courseId: str</span>
+<span class="sd">        </span>
+<span class="sd">        :returns: A :class:`learningstudio.core.Response` object with details of status and content.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">relativeUrl</span> <span class="o">=</span> <span class="n">PATH_USERS_COURSES_GRADEBOOK__USERGRADEBOOKITEMS</span> <span class="o">%</span> <span class="p">(</span><span class="n">userId</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doGet</span><span class="p">(</span><span class="n">relativeUrl</span><span class="p">)</span>
+	</div>
+<div class="viewcode-block" id="GradeService.getCourseGradebookUserItem"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.grades.service.GradeService.getCourseGradebookUserItem">[docs]</a>    <span class="k">def</span> <span class="nf">getCourseGradebookUserItem</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">userId</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">userGradebookItemId</span><span class="p">,</span> <span class="n">expand_grade</span> <span class="o">=</span> <span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get user gradebook item in a course gradebook by user gradebook item id with</span>
+<span class="sd">        ``GET /users/{userId}/courses/{courseId}/gradebook/userGradebookItems/{userGradebookItemId}``</span>
+<span class="sd">        using OAuth1 or Auth2 as a student, teacher, teaching assistant or administrator.</span>
+<span class="sd">        </span>
+<span class="sd">        :param userId: ID of the user.</span>
+<span class="sd">        :type userId: str</span>
+<span class="sd">        :param courseId: ID of the course.</span>
+<span class="sd">        :type courseId: str</span>
+<span class="sd">        :param userGradebookItemId: concatenation of {userId}-{gradebookItemGuid}.</span>
+<span class="sd">        :type userGradebookItemId: str</span>
+<span class="sd">        :key expand_grade: Flag of whether to expand grade data.</span>
+<span class="sd">        :type expand_grade: bool</span>
+<span class="sd">        </span>
+<span class="sd">        :returns: A :class:`learningstudio.core.Response` object with details of status and content.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">expand_grade</span> <span class="o">!=</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__getCourseGradebookUserItem</span><span class="p">(</span><span class="n">userId</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">userGradebookItemId</span><span class="p">,</span> <span class="n">expand_grade</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">relativeUrl</span> <span class="o">=</span> <span class="n">PATH_USERS_COURSES_GRADEBOOK__USERGRADEBOOKITEMS_</span> <span class="o">%</span> <span class="p">(</span><span class="n">userId</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">userGradebookItemId</span><span class="p">,)</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doGet</span><span class="p">(</span><span class="n">relativeUrl</span><span class="p">)</span>
+	</div>
+    <span class="k">def</span> <span class="nf">__getCourseGradebookUserItem</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">userId</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">userGradebookItemId</span><span class="p">,</span> <span class="n">expandGrade</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Get user gradebook item in a course gradebook by user gradebook item id with</span>
+<span class="sd">        ``GET /users/{userId}/courses/{courseId}/gradebook/userGradebookItems/{userGradebookItem}``</span>
+<span class="sd">        or ``GET /users/{userId}/courses/{courseId}/gradebook/userGradebookItems/{userGradebookItem}?expandGrade=true``</span>
+<span class="sd">        using OAuth1 or Auth2 as a student, teacher, teaching assistant or administrator.</span>
+<span class="sd">        </span>
+<span class="sd">        :param userId: ID of the user.</span>
+<span class="sd">        :type userId: str</span>
+<span class="sd">        :param courseId: ID of the course.</span>
+<span class="sd">        :type courseId: str</span>
+<span class="sd">        :param userGradebookItemId: concatenation of {userId}-{gradebookItemGuid}.</span>
+<span class="sd">        :type userGradebookItemId: str</span>
+<span class="sd">        :param expandGrade: Flag of whether to expand grade data.</span>
+<span class="sd">        :type expandGrade: bool</span>
+<span class="sd">            </span>
+<span class="sd">        :returns: A :class:`learningstudio.core.Response` object with details of status and content.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="n">PATH_USERS_COURSES_GRADEBOOK__USERGRADEBOOKITEMS_EXPANDGRADE</span> <span class="k">if</span> <span class="n">expandGrade</span> <span class="k">else</span> <span class="n">PATH_USERS_COURSES_GRADEBOOK__USERGRADEBOOKITEMS_</span>
+        <span class="n">relativeUrl</span> <span class="o">=</span> <span class="n">path</span> <span class="o">%</span> <span class="p">(</span><span class="n">userId</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">userGradebookItemId</span><span class="p">,)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doGet</span><span class="p">(</span><span class="n">relativeUrl</span><span class="p">)</span>
+	
+<div class="viewcode-block" id="GradeService.getTotalPointsAvailable"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.grades.service.GradeService.getTotalPointsAvailable">[docs]</a>    <span class="k">def</span> <span class="nf">getTotalPointsAvailable</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">userId</span><span class="p">,</span> <span class="n">courseId</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get summary of points available to a student in a course with</span>
+<span class="sd">        ``GET /users/{userId}/courses/{courseId}/gradebook/userGradebookItemsTotals``</span>
+<span class="sd">        using OAuth1 or Auth2 as a student, teacher, teaching assistant or administrator.</span>
+<span class="sd">        </span>
+<span class="sd">        :param userId: ID of the user.</span>
+<span class="sd">        :type userId: str</span>
+<span class="sd">        :param courseId: ID of the course.</span>
+<span class="sd">        :type courseId: str</span>
+<span class="sd">        </span>
+<span class="sd">        :returns: A :class:`learningstudio.core.Response` object with details of status and content.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">relativeUrl</span> <span class="o">=</span> <span class="n">PATH_USERS_COURSES_GRADEBOOK__USERGRADEBOOKITEMSTOTAL</span> <span class="o">%</span> <span class="p">(</span><span class="n">userId</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doGet</span><span class="p">(</span><span class="n">relativeUrl</span><span class="p">)</span>
+</pre></div></div></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../index.html">LearningStudio API 1.0 documentation</a> &raquo;</li>
+          <li><a href="../../index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2014, Pearson.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.2.
+    </div>
+  </body>
+</html>

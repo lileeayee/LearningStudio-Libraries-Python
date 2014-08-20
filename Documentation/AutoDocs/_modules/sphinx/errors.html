@@ -1,0 +1,159 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>sphinx.errors &mdash; LearningStudio API 1.0 documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '1.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="LearningStudio API 1.0 documentation" href="../../index.html" />
+    <link rel="up" title="sphinx" href="../sphinx.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">LearningStudio API 1.0 documentation</a> &raquo;</li>
+          <li><a href="../index.html" >Module code</a> &raquo;</li>
+          <li><a href="../sphinx.html" accesskey="U">sphinx</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for sphinx.errors</h1><div class="highlight"><pre>
+<span class="c"># -*- coding: utf-8 -*-</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    sphinx.errors</span>
+<span class="sd">    ~~~~~~~~~~~~~</span>
+
+<span class="sd">    Contains SphinxError and a few subclasses (in an extra module to avoid</span>
+<span class="sd">    circular import problems).</span>
+
+<span class="sd">    :copyright: Copyright 2007-2014 by the Sphinx team, see AUTHORS.</span>
+<span class="sd">    :license: BSD, see LICENSE for details.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="SphinxError"><a class="viewcode-back" href="../../build/Sphinx/doc/extdev/appapi.html#sphinx.errors.SphinxError">[docs]</a><span class="k">class</span> <span class="nc">SphinxError</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Base class for Sphinx errors that are shown to the user in a nicer</span>
+<span class="sd">    way than normal exceptions.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">category</span> <span class="o">=</span> <span class="s">&#39;Sphinx error&#39;</span>
+
+</div>
+<span class="k">class</span> <span class="nc">SphinxWarning</span><span class="p">(</span><span class="n">SphinxError</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Raised for warnings if warnings are treated as errors.&quot;&quot;&quot;</span>
+    <span class="n">category</span> <span class="o">=</span> <span class="s">&#39;Warning, treated as error&#39;</span>
+
+
+<div class="viewcode-block" id="ExtensionError"><a class="viewcode-back" href="../../build/Sphinx/doc/extdev/appapi.html#sphinx.errors.ExtensionError">[docs]</a><span class="k">class</span> <span class="nc">ExtensionError</span><span class="p">(</span><span class="n">SphinxError</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Raised if something&#39;s wrong with the configuration.&quot;&quot;&quot;</span>
+    <span class="n">category</span> <span class="o">=</span> <span class="s">&#39;Extension error&#39;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">message</span><span class="p">,</span> <span class="n">orig_exc</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="n">SphinxError</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">message</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">orig_exc</span> <span class="o">=</span> <span class="n">orig_exc</span>
+
+    <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">orig_exc</span><span class="p">:</span>
+            <span class="k">return</span> <span class="s">&#39;</span><span class="si">%s</span><span class="s">(</span><span class="si">%r</span><span class="s">, </span><span class="si">%r</span><span class="s">)&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__name__</span><span class="p">,</span>
+                                   <span class="bp">self</span><span class="o">.</span><span class="n">message</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">orig_exc</span><span class="p">)</span>
+        <span class="k">return</span> <span class="s">&#39;</span><span class="si">%s</span><span class="s">(</span><span class="si">%r</span><span class="s">)&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__name__</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">message</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">parent_str</span> <span class="o">=</span> <span class="n">SphinxError</span><span class="o">.</span><span class="n">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">orig_exc</span><span class="p">:</span>
+            <span class="k">return</span> <span class="s">&#39;</span><span class="si">%s</span><span class="s"> (exception: </span><span class="si">%s</span><span class="s">)&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">parent_str</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">orig_exc</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">parent_str</span>
+
+</div>
+<div class="viewcode-block" id="ConfigError"><a class="viewcode-back" href="../../build/Sphinx/doc/extdev/appapi.html#sphinx.errors.ConfigError">[docs]</a><span class="k">class</span> <span class="nc">ConfigError</span><span class="p">(</span><span class="n">SphinxError</span><span class="p">):</span>
+    <span class="n">category</span> <span class="o">=</span> <span class="s">&#39;Configuration error&#39;</span>
+
+</div>
+<div class="viewcode-block" id="ThemeError"><a class="viewcode-back" href="../../build/Sphinx/doc/extdev/appapi.html#sphinx.errors.ThemeError">[docs]</a><span class="k">class</span> <span class="nc">ThemeError</span><span class="p">(</span><span class="n">SphinxError</span><span class="p">):</span>
+    <span class="n">category</span> <span class="o">=</span> <span class="s">&#39;Theme error&#39;</span>
+
+</div>
+<div class="viewcode-block" id="VersionRequirementError"><a class="viewcode-back" href="../../build/Sphinx/doc/extdev/appapi.html#sphinx.errors.VersionRequirementError">[docs]</a><span class="k">class</span> <span class="nc">VersionRequirementError</span><span class="p">(</span><span class="n">SphinxError</span><span class="p">):</span>
+    <span class="n">category</span> <span class="o">=</span> <span class="s">&#39;Sphinx version error&#39;</span>
+
+</div>
+<span class="k">class</span> <span class="nc">PycodeError</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">res</span> <span class="o">+=</span> <span class="s">&#39; (exception was: </span><span class="si">%r</span><span class="s">)&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">res</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">LearningStudio API 1.0 documentation</a> &raquo;</li>
+          <li><a href="../index.html" >Module code</a> &raquo;</li>
+          <li><a href="../sphinx.html" >sphinx</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2014, Pearson.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.2.
+    </div>
+  </body>
+</html>

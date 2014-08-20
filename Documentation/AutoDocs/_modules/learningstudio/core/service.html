@@ -1,0 +1,416 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>learningstudio.core.service &mdash; LearningStudio API 1.0 documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '1.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="LearningStudio API 1.0 documentation" href="../../../index.html" />
+    <link rel="up" title="Module code" href="../../index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../index.html">LearningStudio API 1.0 documentation</a> &raquo;</li>
+          <li><a href="../../index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for learningstudio.core.service</h1><div class="highlight"><pre>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">LearningStudio RESTful API Libraries </span>
+<span class="sd">These libraries make it easier to use the LearningStudio Course APIs.</span>
+<span class="sd">Full Documentation is provided with the library. </span>
+
+<span class="sd">Need Help or Have Questions? </span>
+<span class="sd">Please use the PDN Developer Community at https://community.pdn.pearson.com</span>
+
+<span class="sd">:category   LearningStudio Course APIs</span>
+<span class="sd">:author     Wes Williams &lt;wes.williams@pearson.com&gt;</span>
+<span class="sd">:author     Pearson Developer Services Team &lt;apisupport@pearson.com&gt;</span>
+<span class="sd">:copyright  2014 Pearson Education Inc.</span>
+<span class="sd">:license    http://www.apache.org/licenses/LICENSE-2.0  Apache 2.0</span>
+<span class="sd">:version    1.0</span>
+
+<span class="sd">Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
+<span class="sd">you may not use this file except in compliance with the License.</span>
+<span class="sd">You may obtain a copy of the License at</span>
+
+<span class="sd">    http://www.apache.org/licenses/LICENSE-2.0</span>
+
+<span class="sd">Unless required by applicable law or agreed to in writing, software</span>
+<span class="sd">distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="sd">WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="sd">See the License for the specific language governing permissions and</span>
+<span class="sd">limitations under the License.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">service</span>
+<span class="sd">-------</span>
+
+<span class="sd">Defines the basic HTTP method wrappers and related utilities to be used by higher-level service objects.</span>
+
+
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">copy</span>
+<span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">base64</span>
+
+<span class="kn">from</span> <span class="nn">learningstudio.oauth.service</span> <span class="kn">import</span> <span class="n">AuthMethod</span>
+<span class="kn">from</span> <span class="nn">learningstudio.oauth.util</span> <span class="kn">import</span> <span class="n">current_time_millis</span><span class="p">,</span> <span class="n">unix_time_millis</span>
+<span class="kn">from</span> <span class="nn">learningstudio.oauth.util</span> <span class="kn">import</span> <span class="n">parse_url</span><span class="p">,</span> <span class="n">parts_to_url</span><span class="p">,</span> <span class="n">parse_xml_tag</span>
+<span class="kn">from</span> <span class="nn">learningstudio.oauth.util</span> <span class="kn">import</span> <span class="n">parse_url_and_connect</span><span class="p">,</span> <span class="n">datetime_to_millis</span>
+<span class="kn">from</span> <span class="nn">learningstudio.oauth.util</span> <span class="kn">import</span> <span class="n">json_loads</span>
+<span class="kn">from</span> <span class="nn">learningstudio.core.response</span> <span class="kn">import</span> <span class="n">Response</span>
+
+<div class="viewcode-block" id="HttpStatusCode"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.core.service.HttpStatusCode">[docs]</a><span class="k">class</span> <span class="nc">HttpStatusCode</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;Declares HTTP status code constants.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">OK</span> <span class="o">=</span> <span class="mi">200</span>
+    <span class="n">CREATED</span> <span class="o">=</span> <span class="mi">201</span>
+    <span class="n">NO_CONTENT</span> <span class="o">=</span> <span class="mi">204</span>
+    <span class="n">BAD_REQUEST</span> <span class="o">=</span> <span class="mi">400</span>
+    <span class="n">FORBIDDEN</span> <span class="o">=</span> <span class="mi">403</span>
+    <span class="n">NOT_FOUND</span> <span class="o">=</span> <span class="mi">404</span>
+    <span class="n">INTERNAL_ERROR</span> <span class="o">=</span> <span class="mi">500</span>
+</div>
+<div class="viewcode-block" id="DataFormat"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.core.service.DataFormat">[docs]</a><span class="k">class</span> <span class="nc">DataFormat</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;Declares constants that identifies the dataformats supported by the remote service calls.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">JSON</span> <span class="o">=</span> <span class="s">&#39;JSON&#39;</span>
+    <span class="n">XML</span> <span class="o">=</span> <span class="s">&#39;XML&#39;</span>
+</div>
+<div class="viewcode-block" id="BasicService"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.core.service.BasicService">[docs]</a><span class="k">class</span> <span class="nc">BasicService</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Provides the base REST API client functionality for all user-level services like exams, grades and content.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">API_DOMAIN</span> <span class="o">=</span> <span class="s">&quot;https://api.learningstudio.com&quot;</span>
+    <span class="n">__HTTP_METHODS</span> <span class="o">=</span> <span class="p">(</span><span class="s">&#39;GET&#39;</span><span class="p">,</span> <span class="s">&#39;PUT&#39;</span><span class="p">,</span> <span class="s">&#39;POST&#39;</span><span class="p">,</span> <span class="s">&#39;DELETE&#39;</span><span class="p">,)</span>    
+    <span class="n">__PATH_SYSTEMDATETIME</span> <span class="o">=</span> <span class="s">&quot;/systemDateTime&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__getServiceIdentifier</span><span class="p">():</span>
+        <span class="k">return</span> <span class="s">&quot;LS-Library-Core-Python-V1&quot;</span>
+    
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">oauth_service_factory</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Initializes a BasicService object.</span>
+
+<span class="sd">        :param oauth_service_factory: The factory object used to create the authentication services.</span>
+<span class="sd">        :type oauth_service_factory: :class:`learningstudio.oauth.service.OAuthServiceFactory`</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__oauth_service_factory</span> <span class="o">=</span> <span class="n">oauth_service_factory</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__data_format</span> <span class="o">=</span> <span class="n">DataFormat</span><span class="o">.</span><span class="n">JSON</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__auth_method</span> <span class="o">=</span> <span class="n">AuthMethod</span><span class="o">.</span><span class="n">oauth1_signature_service</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__username</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__password</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__current_oauth_request</span> <span class="o">=</span> <span class="bp">None</span>
+
+<div class="viewcode-block" id="BasicService.doGet"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.core.service.BasicService.doGet">[docs]</a>    <span class="k">def</span> <span class="nf">doGet</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">relative_url</span><span class="p">,</span> <span class="n">extra_headers</span> <span class="o">=</span> <span class="bp">None</span><span class="p">,</span> <span class="n">body</span> <span class="o">=</span> <span class="s">&#39;&#39;</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Makes a GET HTTP request.</span>
+
+<span class="sd">        :param relative_url: The resource URL.</span>
+<span class="sd">        :type relative_url: str</span>
+<span class="sd">        :param extra_headers: Any additional HTTP headers to be send.</span>
+<span class="sd">        :type extra_headers: dict</span>
+<span class="sd">        :param body: Any request body to be send.</span>
+<span class="sd">        :type body: str</span>
+
+<span class="sd">        :returns: An object that encapsulates the HTTP response.</span>
+<span class="sd">        :rtype: :class:`learningstudio.core.response.Response`</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doMethod</span><span class="p">(</span><span class="s">&#39;GET&#39;</span><span class="p">,</span> <span class="n">relative_url</span><span class="p">,</span> <span class="n">extra_headers</span> <span class="o">=</span> <span class="n">extra_headers</span><span class="p">,</span>
+                             <span class="n">body</span> <span class="o">=</span> <span class="n">body</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="BasicService.doPut"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.core.service.BasicService.doPut">[docs]</a>    <span class="k">def</span> <span class="nf">doPut</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">relative_url</span><span class="p">,</span> <span class="n">extra_headers</span> <span class="o">=</span> <span class="bp">None</span><span class="p">,</span> <span class="n">body</span> <span class="o">=</span> <span class="s">&#39;&#39;</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Makes a PUT HTTP request.</span>
+
+<span class="sd">        relative_url - The resource URL.</span>
+<span class="sd">        extra_headers - Any additional HTTP headers to be send.</span>
+<span class="sd">        body - Any request body to be send.</span>
+
+<span class="sd">        Returns an object that encapsulates the HTTP response.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doMethod</span><span class="p">(</span><span class="s">&#39;PUT&#39;</span><span class="p">,</span> <span class="n">relative_url</span><span class="p">,</span> <span class="n">extra_headers</span> <span class="o">=</span> <span class="n">extra_headers</span><span class="p">,</span>
+                             <span class="n">body</span> <span class="o">=</span> <span class="n">body</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="BasicService.doPost"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.core.service.BasicService.doPost">[docs]</a>    <span class="k">def</span> <span class="nf">doPost</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">relative_url</span><span class="p">,</span> <span class="n">extra_headers</span> <span class="o">=</span> <span class="bp">None</span><span class="p">,</span> <span class="n">body</span> <span class="o">=</span> <span class="s">&#39;&#39;</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Makes a POST HTTP request.</span>
+
+<span class="sd">        relative_url - The resource URL.</span>
+<span class="sd">        extra_headers - Any additional HTTP headers to be send.</span>
+<span class="sd">        body - Any request body to be send.</span>
+
+<span class="sd">        Returns an object that encapsulates the HTTP response.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doMethod</span><span class="p">(</span><span class="s">&#39;POST&#39;</span><span class="p">,</span> <span class="n">relative_url</span><span class="p">,</span> <span class="n">extra_headers</span> <span class="o">=</span> <span class="n">extra_headers</span><span class="p">,</span>
+                             <span class="n">body</span> <span class="o">=</span> <span class="n">body</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="BasicService.doDelete"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.core.service.BasicService.doDelete">[docs]</a>    <span class="k">def</span> <span class="nf">doDelete</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">relative_url</span><span class="p">,</span> <span class="n">extra_headers</span> <span class="o">=</span> <span class="bp">None</span><span class="p">,</span> <span class="n">body</span> <span class="o">=</span> <span class="s">&#39;&#39;</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Makes a DELETE HTTP request.</span>
+
+<span class="sd">        relative_url - The resource URL.</span>
+<span class="sd">        extra_headers - Any additional HTTP headers to be send.</span>
+<span class="sd">        body - Any request body to be send.</span>
+
+<span class="sd">        Returns an object that encapsulates the HTTP response.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doMethod</span><span class="p">(</span><span class="s">&#39;DELETE&#39;</span><span class="p">,</span> <span class="n">relative_url</span><span class="p">,</span> 
+                             <span class="n">extra_headers</span> <span class="o">=</span> <span class="n">extra_headers</span><span class="p">,</span>
+                             <span class="n">body</span> <span class="o">=</span> <span class="n">body</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="BasicService.doMethod"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.core.service.BasicService.doMethod">[docs]</a>    <span class="k">def</span> <span class="nf">doMethod</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">http_method</span><span class="p">,</span> <span class="n">relative_url</span><span class="p">,</span> 
+                 <span class="n">extra_headers</span> <span class="o">=</span> <span class="bp">None</span><span class="p">,</span> <span class="n">body</span> <span class="o">=</span> <span class="s">&#39;&#39;</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Makes a generic HTTP request.</span>
+
+<span class="sd">        http_method - A string that identifies the request method.</span>
+<span class="sd">        relative_url - The resource URL.</span>
+<span class="sd">        extra_headers - Any additional HTTP headers to be send.</span>
+<span class="sd">        body - Any request body to be send.</span>
+
+<span class="sd">        Returns an object that encapsulates the HTTP response.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">assert</span> <span class="p">(</span><span class="n">http_method</span> <span class="ow">in</span> <span class="n">BasicService</span><span class="o">.</span><span class="n">__HTTP_METHODS</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">__data_format</span> <span class="o">==</span> <span class="n">DataFormat</span><span class="o">.</span><span class="n">XML</span><span class="p">:</span> <span class="n">relative_url</span> <span class="o">=</span> <span class="n">BasicService</span><span class="o">.</span><span class="n">__append_extn</span><span class="p">(</span><span class="n">relative_url</span><span class="p">,</span> <span class="s">&#39;.xml&#39;</span><span class="p">)</span>
+        <span class="n">full_url</span> <span class="o">=</span> <span class="n">BasicService</span><span class="o">.</span><span class="n">API_DOMAIN</span> <span class="o">+</span> <span class="n">relative_url</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;REQUEST - Method: </span><span class="si">%s</span><span class="s">, URL: </span><span class="si">%s</span><span class="s">, Body: </span><span class="si">%s</span><span class="s">.&#39;</span><span class="p">,</span> <span class="n">http_method</span><span class="p">,</span> <span class="n">full_url</span><span class="p">,</span> <span class="n">body</span><span class="p">)</span>
+        <span class="n">oauth_headers</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__get_oauth_headers</span><span class="p">(</span><span class="n">http_method</span><span class="p">,</span> <span class="n">full_url</span><span class="p">,</span> <span class="n">body</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">oauth_headers</span> <span class="o">==</span> <span class="bp">None</span><span class="p">:</span> 
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s">&#39;Authentication method not selected. SEE useOAuth# methods.&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">extra_headers</span> <span class="o">!=</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">extra_headers</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                <span class="n">value</span> <span class="o">=</span> <span class="n">extra_headers</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+                <span class="k">if</span> <span class="n">oauth_headers</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">key</span><span class="p">)</span> <span class="o">==</span> <span class="bp">None</span><span class="p">:</span>
+                    <span class="n">oauth_headers</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s">&#39;Extra headers can not include OAuth headers.&#39;</span><span class="p">)</span>
+        <span class="n">http_conn</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">http_conn</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">parse_url_and_connect</span><span class="p">(</span><span class="n">BasicService</span><span class="o">.</span><span class="n">API_DOMAIN</span><span class="p">)</span>
+            <span class="n">headers</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">oauth_headers</span><span class="p">)</span>
+            <span class="n">headers</span><span class="p">[</span><span class="s">&quot;User-Agent&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__getServiceIdentifier</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">http_method</span> <span class="o">==</span> <span class="s">&#39;POST&#39;</span> <span class="ow">or</span> <span class="n">http_method</span> <span class="o">==</span> <span class="s">&#39;PUT&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">body</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">byte_array</span> <span class="o">=</span> <span class="n">body</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s">&#39;utf-8&#39;</span><span class="p">)</span>
+                <span class="n">headers</span><span class="p">[</span><span class="s">&#39;Content-Type&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s">&#39;application/json&#39;</span>
+                <span class="n">headers</span><span class="p">[</span><span class="s">&#39;Content-Length&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">byte_array</span><span class="p">)</span>
+                <span class="n">http_conn</span><span class="o">.</span><span class="n">request</span><span class="p">(</span><span class="n">http_method</span><span class="p">,</span> <span class="n">relative_url</span><span class="p">,</span> <span class="n">byte_array</span><span class="p">,</span> <span class="n">headers</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">http_conn</span><span class="o">.</span><span class="n">request</span><span class="p">(</span><span class="n">http_method</span><span class="p">,</span> <span class="n">relative_url</span><span class="p">,</span> <span class="bp">None</span><span class="p">,</span> <span class="n">headers</span><span class="p">)</span>
+            <span class="n">response</span> <span class="o">=</span> <span class="n">http_conn</span><span class="o">.</span><span class="n">getresponse</span><span class="p">()</span>
+            <span class="n">content_type</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">getheader</span><span class="p">(</span><span class="s">&#39;Content-Type&#39;</span><span class="p">,</span> <span class="s">&#39;UNKNOWN&#39;</span><span class="p">)</span>
+            <span class="n">content</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">read</span><span class="p">();</span>
+            <span class="n">ctype</span> <span class="o">=</span> <span class="n">content_type</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+            <span class="n">is_binary</span> <span class="o">=</span> <span class="p">(</span><span class="n">ctype</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s">&#39;text&#39;</span><span class="p">)</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span> <span class="ow">and</span> <span class="n">ctype</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s">&#39;xml&#39;</span><span class="p">)</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span> <span class="ow">and</span> <span class="n">ctype</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s">&#39;json&#39;</span><span class="p">)</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">is_binary</span><span class="p">:</span>
+                <span class="n">content</span> <span class="o">=</span> <span class="n">base64</span><span class="o">.</span><span class="n">b64decode</span><span class="p">(</span><span class="n">content</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">Response</span><span class="p">(</span><span class="n">method</span> <span class="o">=</span> <span class="n">http_method</span><span class="p">,</span> 
+                            <span class="n">url</span> <span class="o">=</span> <span class="n">BasicService</span><span class="o">.</span><span class="n">API_DOMAIN</span> <span class="o">+</span> <span class="n">relative_url</span><span class="p">,</span>
+                            <span class="n">content</span> <span class="o">=</span> <span class="n">content</span><span class="p">,</span>
+                            <span class="n">content_type</span> <span class="o">=</span> <span class="n">content_type</span><span class="p">,</span>
+                            <span class="n">is_binary</span> <span class="o">=</span> <span class="n">is_binary</span><span class="p">,</span>
+                            <span class="n">status_code</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">status</span><span class="p">,</span>
+                            <span class="n">status_message</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">reason</span><span class="p">)</span>                            
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">http_conn</span> <span class="o">!=</span> <span class="bp">None</span><span class="p">:</span>
+                <span class="n">http_conn</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+</div>
+<div class="viewcode-block" id="BasicService.useOAuth1"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.core.service.BasicService.useOAuth1">[docs]</a>    <span class="k">def</span> <span class="nf">useOAuth1</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Sets-up the service to use OAuth1 authentication for further requests.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__auth_method</span> <span class="o">=</span> <span class="n">AuthMethod</span><span class="o">.</span><span class="n">oauth1_signature_service</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__username</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__password</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__current_oauth_request</span> <span class="o">=</span> <span class="bp">None</span>
+</div>
+<div class="viewcode-block" id="BasicService.useOAuth2"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.core.service.BasicService.useOAuth2">[docs]</a>    <span class="k">def</span> <span class="nf">useOAuth2</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">username</span><span class="p">,</span> <span class="n">password</span> <span class="o">=</span> <span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Sets-up the service to use OAuth2 authentication for further requests.</span>
+<span class="sd">        </span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__username</span> <span class="o">=</span> <span class="n">username</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__current_oauth_request</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="k">if</span> <span class="n">password</span> <span class="o">==</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">__auth_method</span> <span class="o">=</span> <span class="n">AuthMethod</span><span class="o">.</span><span class="n">oauth2_assertion_service</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">__password</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">__auth_method</span> <span class="o">=</span> <span class="n">AuthMethod</span><span class="o">.</span><span class="n">oauth2_password_service</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">__password</span> <span class="o">=</span> <span class="n">password</span>            
+</div>
+<div class="viewcode-block" id="BasicService.destroy"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.core.service.BasicService.destroy">[docs]</a>    <span class="k">def</span> <span class="nf">destroy</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Invalidates the object.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">__oauth_service_factory</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__data_format</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__auth_method</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__username</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__password</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__current_oauth_request</span> <span class="o">=</span> <span class="bp">None</span>
+</div>
+<div class="viewcode-block" id="BasicService.getPreferredFormat"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.core.service.BasicService.getPreferredFormat">[docs]</a>    <span class="k">def</span> <span class="nf">getPreferredFormat</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the currently preferred response format.</span>
+
+<span class="sd">        :returns: The preferred data format - either JSON or XML.</span>
+<span class="sd">        :rtype: str</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__data_format</span>
+</div>
+<div class="viewcode-block" id="BasicService.setPreferredFormat"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.core.service.BasicService.setPreferredFormat">[docs]</a>    <span class="k">def</span> <span class="nf">setPreferredFormat</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fmt</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Sets the currently preferred response format.</span>
+
+<span class="sd">        :param fmt: A string that identifies the format. Should be either `DataFormat.XML` or `DataFormat.JSON`.&#39;</span>
+<span class="sd">        :type fmt: str</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__data_format</span> <span class="o">=</span> <span class="n">fmt</span>
+</div>
+<div class="viewcode-block" id="BasicService.getSystemDateTime"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.core.service.BasicService.getSystemDateTime">[docs]</a>    <span class="k">def</span> <span class="nf">getSystemDateTime</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the system time on the API server.</span>
+<span class="sd">        </span>
+<span class="sd">        :returns: The system time on the server.</span>
+<span class="sd">        :rtype: str</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doMethod</span><span class="p">(</span><span class="s">&#39;GET&#39;</span><span class="p">,</span> <span class="n">BasicService</span><span class="o">.</span><span class="n">__PATH_SYSTEMDATETIME</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="BasicService.getSystemDateTimeMillis"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.core.service.BasicService.getSystemDateTimeMillis">[docs]</a>    <span class="k">def</span> <span class="nf">getSystemDateTimeMillis</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the system time on the API server as milliseconds.</span>
+
+<span class="sd">        :returns: The system time on the server as milliseconds.</span>
+<span class="sd">        :rtype: long</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">getSystemDateTime</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">response</span><span class="o">.</span><span class="n">isError</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">IOError</span><span class="p">(</span><span class="s">&#39;Time lookup failed: </span><span class="si">%s</span><span class="s"> - </span><span class="si">%s</span><span class="s">.&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">getStatusCode</span><span class="p">(),</span> <span class="n">response</span><span class="o">.</span><span class="n">getStatusMessage</span><span class="p">()))</span>
+        <span class="n">content</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">getContent</span><span class="p">()</span>
+        <span class="n">time_value</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">__data_format</span> <span class="o">==</span> <span class="n">DataFormat</span><span class="o">.</span><span class="n">XML</span><span class="p">:</span>
+            <span class="n">time_value</span> <span class="o">=</span> <span class="n">parse_xml_tag</span><span class="p">(</span><span class="n">content</span><span class="p">,</span> <span class="p">[</span><span class="s">&#39;systemDateTime&#39;</span><span class="p">,</span> <span class="s">&#39;value&#39;</span><span class="p">])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">json_data</span> <span class="o">=</span> <span class="n">json_loads</span><span class="p">(</span><span class="n">content</span><span class="p">)</span>
+            <span class="n">time_value</span> <span class="o">=</span> <span class="n">json_data</span><span class="p">[</span><span class="s">&#39;systemDateTime&#39;</span><span class="p">][</span><span class="s">&#39;value&#39;</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">datetime_to_millis</span><span class="p">(</span><span class="n">time_value</span><span class="p">)</span>
+        </div>
+    <span class="k">def</span> <span class="nf">__get_oauth_headers</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">http_method</span><span class="p">,</span> <span class="n">url</span><span class="p">,</span> <span class="n">body</span><span class="p">):</span>
+        <span class="n">service</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__oauth_service_factory</span><span class="o">.</span><span class="n">build</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__auth_method</span><span class="p">)</span>
+        <span class="n">headers</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">__auth_method</span> <span class="o">==</span> <span class="n">AuthMethod</span><span class="o">.</span><span class="n">oauth1_signature_service</span><span class="p">():</span>
+            <span class="n">request</span> <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">generateRequest</span><span class="p">(</span><span class="n">http_method</span> <span class="o">=</span> <span class="n">http_method</span><span class="p">,</span>
+                                              <span class="n">url</span> <span class="o">=</span> <span class="n">url</span><span class="p">,</span>
+                                              <span class="n">body</span> <span class="o">=</span> <span class="n">body</span><span class="p">)</span>
+            <span class="n">headers</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">getHeaders</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span> 
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">__current_oauth_request</span> <span class="o">!=</span> <span class="bp">None</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">current_time_millis</span><span class="p">()</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__current_oauth_request</span><span class="o">.</span><span class="n">getExpirationTime</span><span class="p">():</span>
+                    <span class="n">logging</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;Previous OAuth2 headers have expired.&#39;</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">__auth_method</span> <span class="o">==</span> <span class="n">AuthMethod</span><span class="o">.</span><span class="n">oauth2_password_service</span><span class="p">():</span>
+                        <span class="n">logging</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;Refreshing oauth2 token.&#39;</span><span class="p">)</span>
+                        <span class="n">refresh_request</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__current_oauth_request</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">__current_oauth_request</span> <span class="o">=</span> <span class="bp">None</span>
+                        <span class="k">try</span><span class="p">:</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">__current_oauth_request</span> <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">refreshOAuth2PasswordRequest</span><span class="p">(</span><span class="n">refresh_request</span><span class="p">)</span>
+                        <span class="k">except</span> <span class="n">e</span><span class="p">:</span>
+                            <span class="n">logging</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;Failed to refresh oauth2 token: &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">))</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">__current_oauth_request</span> <span class="o">=</span> <span class="bp">None</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">__current_oauth_request</span> <span class="o">==</span> <span class="bp">None</span><span class="p">:</span>
+                <span class="n">logging</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;Generating new OAuth2 headers.&#39;</span><span class="p">)</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">__auth_method</span> <span class="o">==</span> <span class="n">AuthMethod</span><span class="o">.</span><span class="n">oauth2_password_service</span><span class="p">():</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">__current_oauth_request</span> <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">generateRequest</span><span class="p">(</span><span class="n">username</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__username</span><span class="p">,</span>
+                                                                           <span class="n">password</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__password</span><span class="p">)</span>
+                <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">__auth_method</span> <span class="o">==</span> <span class="n">AuthMethod</span><span class="o">.</span><span class="n">oauth2_assertion_service</span><span class="p">():</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">__current_oauth_request</span> <span class="o">=</span> <span class="n">service</span><span class="o">.</span><span class="n">generateRequest</span><span class="p">(</span><span class="n">username</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__username</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s">&#39;Auth method &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__auth_method</span><span class="p">)</span> <span class="o">+</span> <span class="s">&#39; is not implemented.&#39;</span><span class="p">)</span>
+            <span class="n">headers</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__current_oauth_request</span><span class="o">.</span><span class="n">getHeaders</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">headers</span><span class="p">)</span>
+    
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">__append_extn</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">extn</span><span class="p">):</span>
+        <span class="n">parts</span> <span class="o">=</span> <span class="n">parse_url</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">parts_to_url</span><span class="p">(</span><span class="n">parts</span><span class="o">.</span><span class="n">scheme</span><span class="p">,</span> <span class="n">parts</span><span class="o">.</span><span class="n">netloc</span><span class="p">,</span> <span class="n">parts</span><span class="o">.</span><span class="n">path</span> <span class="o">+</span> <span class="n">extn</span><span class="p">,</span>
+                            <span class="n">parts</span><span class="o">.</span><span class="n">params</span><span class="p">,</span> <span class="n">parts</span><span class="o">.</span><span class="n">query</span><span class="p">,</span> <span class="n">parts</span><span class="o">.</span><span class="n">fragment</span><span class="p">)</span></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../index.html">LearningStudio API 1.0 documentation</a> &raquo;</li>
+          <li><a href="../../index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2014, Pearson.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.2.
+    </div>
+  </body>
+</html>

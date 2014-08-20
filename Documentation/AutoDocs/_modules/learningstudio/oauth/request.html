@@ -1,0 +1,242 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>learningstudio.oauth.request &mdash; LearningStudio API 1.0 documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '1.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="LearningStudio API 1.0 documentation" href="../../../index.html" />
+    <link rel="up" title="Module code" href="../../index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../index.html">LearningStudio API 1.0 documentation</a> &raquo;</li>
+          <li><a href="../../index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for learningstudio.oauth.request</h1><div class="highlight"><pre>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">LearningStudio RESTful API Libraries </span>
+<span class="sd">These libraries make it easier to use the LearningStudio Course APIs.</span>
+<span class="sd">Full Documentation is provided with the library. </span>
+
+<span class="sd">Need Help or Have Questions? </span>
+<span class="sd">Please use the PDN Developer Community at https://community.pdn.pearson.com</span>
+
+<span class="sd">:category   LearningStudio Course APIs</span>
+<span class="sd">:author     Wes Williams &lt;wes.williams@pearson.com&gt;</span>
+<span class="sd">:author     Pearson Developer Services Team &lt;apisupport@pearson.com&gt;</span>
+<span class="sd">:copyright  2014 Pearson Education Inc.</span>
+<span class="sd">:license    http://www.apache.org/licenses/LICENSE-2.0  Apache 2.0</span>
+<span class="sd">:version    1.0</span>
+
+<span class="sd">Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
+<span class="sd">you may not use this file except in compliance with the License.</span>
+<span class="sd">You may obtain a copy of the License at</span>
+
+<span class="sd">    http://www.apache.org/licenses/LICENSE-2.0</span>
+
+<span class="sd">Unless required by applicable law or agreed to in writing, software</span>
+<span class="sd">distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="sd">WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="sd">See the License for the specific language governing permissions and</span>
+<span class="sd">limitations under the License.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">request</span>
+<span class="sd">-------</span>
+
+<span class="sd">Objects representing OAuth requests.</span>
+
+
+<span class="sd">&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="OAuthRequest"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.oauth.request.OAuthRequest">[docs]</a><span class="k">class</span> <span class="nc">OAuthRequest</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Represents a basic OAuth request object.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">headers</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__headers</span> <span class="o">=</span> <span class="n">headers</span>
+
+    <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">s</span> <span class="o">=</span> <span class="s">&#39;&#39;</span>
+        <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">__headers</span><span class="o">.</span><span class="n">iteritems</span><span class="p">():</span>
+            <span class="n">s</span> <span class="o">+=</span> <span class="s">&#39;</span><span class="si">%s</span><span class="s">=</span><span class="si">%s</span><span class="se">\n</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">s</span>
+
+    <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span> <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__str__</span><span class="p">()</span>
+
+<div class="viewcode-block" id="OAuthRequest.getHeaders"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.oauth.request.OAuthRequest.getHeaders">[docs]</a>    <span class="k">def</span> <span class="nf">getHeaders</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span> 
+        <span class="sd">&quot;&quot;&quot;Returns the OAuth headers.</span>
+
+<span class="sd">        :returns: The OAuth headers.</span>
+<span class="sd">        :rtype: dict</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__headers</span>
+</div></div>
+<div class="viewcode-block" id="OAuth1Request"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.oauth.request.OAuth1Request">[docs]</a><span class="k">class</span> <span class="nc">OAuth1Request</span><span class="p">(</span><span class="n">OAuthRequest</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Represents an OAuth1 request object.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">headers</span><span class="p">,</span> <span class="n">signature</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__signature</span> <span class="o">=</span> <span class="n">signature</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">OAuth1Request</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">headers</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">s</span> <span class="o">=</span> <span class="nb">super</span><span class="p">(</span><span class="n">OAuth1Request</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__str__</span><span class="p">()</span>
+        <span class="n">s</span> <span class="o">+=</span> <span class="s">&#39;</span><span class="se">\n</span><span class="s">&#39;</span>
+        <span class="n">s</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__signature</span>
+        <span class="k">return</span> <span class="n">s</span>
+
+    <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span> <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__str__</span><span class="p">()</span>
+
+<div class="viewcode-block" id="OAuth1Request.getSignature"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.oauth.request.OAuth1Request.getSignature">[docs]</a>    <span class="k">def</span> <span class="nf">getSignature</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span> 
+        <span class="sd">&quot;&quot;&quot;Returns the OAuth1 signature.</span>
+
+<span class="sd">        :returns: The signature string.</span>
+<span class="sd">        :rtype: str</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__signature</span>
+</div></div>
+<div class="viewcode-block" id="OAuth2Request"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.oauth.request.OAuth2Request">[docs]</a><span class="k">class</span> <span class="nc">OAuth2Request</span><span class="p">(</span><span class="n">OAuthRequest</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Represents an OAuth2 request object.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">headers</span><span class="p">,</span> 
+                 <span class="n">access_token</span><span class="p">,</span> <span class="n">refresh_token</span><span class="p">,</span>
+                 <span class="n">expires_in_seconds</span><span class="p">,</span> <span class="n">creation_time</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">OAuth2Request</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">headers</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__access_token</span> <span class="o">=</span> <span class="n">access_token</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__refresh_token</span> <span class="o">=</span> <span class="n">refresh_token</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__expires_in_seconds</span> <span class="o">=</span> <span class="n">expires_in_seconds</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__creation_time</span> <span class="o">=</span> <span class="n">creation_time</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__expiration_time</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">__creation_time</span> <span class="o">!=</span> <span class="bp">None</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">__expires_in_seconds</span> <span class="o">!=</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">__expiration_time</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__creation_time</span> <span class="o">+</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__expires_in_seconds</span> <span class="o">*</span> <span class="mi">1000</span><span class="p">)</span>
+
+<div class="viewcode-block" id="OAuth2Request.getAccessToken"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.oauth.request.OAuth2Request.getAccessToken">[docs]</a>    <span class="k">def</span> <span class="nf">getAccessToken</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span> 
+        <span class="sd">&quot;&quot;&quot;Returns the access token.</span>
+
+<span class="sd">        :returns: The access token.</span>
+<span class="sd">        :rtype: str</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__access_token</span>
+</div>
+<div class="viewcode-block" id="OAuth2Request.getRefreshToken"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.oauth.request.OAuth2Request.getRefreshToken">[docs]</a>    <span class="k">def</span> <span class="nf">getRefreshToken</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span> 
+        <span class="sd">&quot;&quot;&quot;Returns the refresh token.</span>
+
+<span class="sd">        :returns: The refresh token.</span>
+<span class="sd">        :rtype: str</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__refresh_token</span>
+</div>
+<div class="viewcode-block" id="OAuth2Request.getExpiresInSeconds"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.oauth.request.OAuth2Request.getExpiresInSeconds">[docs]</a>    <span class="k">def</span> <span class="nf">getExpiresInSeconds</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span> 
+        <span class="sd">&quot;&quot;&quot;Returns the time in which this authtoken will expire.</span>
+
+<span class="sd">        :returns: Time to expire in seconds.</span>
+<span class="sd">        :rtype: long</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__expires_in_seconds</span>
+</div>
+<div class="viewcode-block" id="OAuth2Request.getCreationTime"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.oauth.request.OAuth2Request.getCreationTime">[docs]</a>    <span class="k">def</span> <span class="nf">getCreationTime</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span> 
+        <span class="sd">&quot;&quot;&quot;Returns the time at which this object was created.</span>
+
+<span class="sd">        :returns: The creation time object</span>
+<span class="sd">        :rtype: time</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__creation_time</span>
+</div>
+<div class="viewcode-block" id="OAuth2Request.getExpirationTime"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.oauth.request.OAuth2Request.getExpirationTime">[docs]</a>    <span class="k">def</span> <span class="nf">getExpirationTime</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span> 
+        <span class="sd">&quot;&quot;&quot;Returns the time in which this authtoken will expire.</span>
+
+<span class="sd">        :returns: The expiration time object</span>
+<span class="sd">        :rtype: time</span>
+<span class="sd">        </span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__expiration_time</span>
+</pre></div></div></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../index.html">LearningStudio API 1.0 documentation</a> &raquo;</li>
+          <li><a href="../../index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2014, Pearson.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.2.
+    </div>
+  </body>
+</html>

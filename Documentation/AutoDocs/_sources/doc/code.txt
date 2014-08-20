@@ -1,0 +1,91 @@
+LearningStudio API documentation
+********************************
+
+.. automodule:: learningstudio
+.. automodule:: learningstudio.oauth
+.. automodule:: learningstudio.core
+.. automodule:: learningstudio.exams
+.. automodule:: learningstudio.grades
+.. automodule:: learningstudio.content
+
+learningstudio.oauth
+====================
+
+.. automodule:: learningstudio.oauth.service
+    :members:
+
+.. autoclass:: learningstudio.oauth.service.AuthMethod
+    :members: 
+
+.. autoclass:: learningstudio.oauth.service.OAuthServiceFactory
+    :members:
+
+.. autoclass:: learningstudio.oauth.service.OAuth1SignatureService
+    :members:
+
+.. automodule:: learningstudio.oauth.request
+    :members:
+
+.. autoclass:: learningstudio.oauth.request.OAuthRequest
+    :members:
+
+.. autoclass:: learningstudio.oauth.request.OAuth1Request
+    :members:
+
+.. autoclass:: learningstudio.oauth.request.OAuth2Request
+    :members:
+
+.. automodule:: learningstudio.oauth.util
+    :members:
+
+.. automodule:: learningstudio.oauth.config
+    :members:
+
+
+learningstudio.core
+===================
+
+.. automodule:: learningstudio.core.service
+    :members:
+
+.. autoclass:: learningstudio.core.service.HttpStatusCode
+    :members:
+
+.. autoclass:: learningstudio.core.service.DataFormat
+    :members:
+
+.. autoclass:: learningstudio.core.service.BasicService
+    :members:
+
+.. automodule:: learningstudio.core.response
+    :members:
+
+.. autoclass:: learningstudio.core.response.Response
+    :members:
+
+learningstudio.exams
+====================
+
+.. automodule:: learningstudio.exams.service
+    :members:
+
+.. autoclass:: learningstudio.exams.service.ExamService
+    :members:
+
+learningstudio.grades
+=====================
+
+.. automodule:: learningstudio.grades.service
+    :members:
+
+.. autoclass:: learningstudio.grades.service.GradeService
+    :members:
+
+learningstudio.content
+======================
+
+.. automodule:: learningstudio.content.service
+    :members:
+
+.. autoclass:: learningstudio.content.service.ContentService
+    :members:

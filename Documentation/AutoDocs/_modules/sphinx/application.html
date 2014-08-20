@@ -1,0 +1,743 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>sphinx.application &mdash; LearningStudio API 1.0 documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '1.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="LearningStudio API 1.0 documentation" href="../../index.html" />
+    <link rel="up" title="sphinx" href="../sphinx.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">LearningStudio API 1.0 documentation</a> &raquo;</li>
+          <li><a href="../index.html" >Module code</a> &raquo;</li>
+          <li><a href="../sphinx.html" accesskey="U">sphinx</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for sphinx.application</h1><div class="highlight"><pre>
+<span class="c"># -*- coding: utf-8 -*-</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    sphinx.application</span>
+<span class="sd">    ~~~~~~~~~~~~~~~~~~</span>
+
+<span class="sd">    Sphinx application object.</span>
+
+<span class="sd">    Gracefully adapted from the TextPress system by Armin.</span>
+
+<span class="sd">    :copyright: Copyright 2007-2014 by the Sphinx team, see AUTHORS.</span>
+<span class="sd">    :license: BSD, see LICENSE for details.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">types</span>
+<span class="kn">import</span> <span class="nn">posixpath</span>
+<span class="kn">from</span> <span class="nn">os</span> <span class="kn">import</span> <span class="n">path</span>
+<span class="kn">from</span> <span class="nn">cStringIO</span> <span class="kn">import</span> <span class="n">StringIO</span>
+
+<span class="kn">from</span> <span class="nn">docutils</span> <span class="kn">import</span> <span class="n">nodes</span>
+<span class="kn">from</span> <span class="nn">docutils.parsers.rst</span> <span class="kn">import</span> <span class="n">convert_directive_function</span><span class="p">,</span> \
+     <span class="n">directives</span><span class="p">,</span> <span class="n">roles</span>
+
+<span class="kn">import</span> <span class="nn">sphinx</span>
+<span class="kn">from</span> <span class="nn">sphinx</span> <span class="kn">import</span> <span class="n">package_dir</span><span class="p">,</span> <span class="n">locale</span>
+<span class="kn">from</span> <span class="nn">sphinx.roles</span> <span class="kn">import</span> <span class="n">XRefRole</span>
+<span class="kn">from</span> <span class="nn">sphinx.config</span> <span class="kn">import</span> <span class="n">Config</span>
+<span class="kn">from</span> <span class="nn">sphinx.errors</span> <span class="kn">import</span> <span class="n">SphinxError</span><span class="p">,</span> <span class="n">SphinxWarning</span><span class="p">,</span> <span class="n">ExtensionError</span><span class="p">,</span> \
+     <span class="n">VersionRequirementError</span>
+<span class="kn">from</span> <span class="nn">sphinx.domains</span> <span class="kn">import</span> <span class="n">ObjType</span><span class="p">,</span> <span class="n">BUILTIN_DOMAINS</span>
+<span class="kn">from</span> <span class="nn">sphinx.domains.std</span> <span class="kn">import</span> <span class="n">GenericObject</span><span class="p">,</span> <span class="n">Target</span><span class="p">,</span> <span class="n">StandardDomain</span>
+<span class="kn">from</span> <span class="nn">sphinx.builders</span> <span class="kn">import</span> <span class="n">BUILTIN_BUILDERS</span>
+<span class="kn">from</span> <span class="nn">sphinx.environment</span> <span class="kn">import</span> <span class="n">BuildEnvironment</span><span class="p">,</span> <span class="n">SphinxStandaloneReader</span>
+<span class="kn">from</span> <span class="nn">sphinx.util</span> <span class="kn">import</span> <span class="n">pycompat</span>  <span class="c"># imported for side-effects</span>
+<span class="kn">from</span> <span class="nn">sphinx.util.tags</span> <span class="kn">import</span> <span class="n">Tags</span>
+<span class="kn">from</span> <span class="nn">sphinx.util.osutil</span> <span class="kn">import</span> <span class="n">ENOENT</span>
+<span class="kn">from</span> <span class="nn">sphinx.util.console</span> <span class="kn">import</span> <span class="n">bold</span><span class="p">,</span> <span class="n">lightgray</span><span class="p">,</span> <span class="n">darkgray</span>
+
+
+<span class="c"># List of all known core events. Maps name to arguments description.</span>
+<span class="n">events</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s">&#39;builder-inited&#39;</span><span class="p">:</span> <span class="s">&#39;&#39;</span><span class="p">,</span>
+    <span class="s">&#39;env-get-outdated&#39;</span><span class="p">:</span> <span class="s">&#39;env, added, changed, removed&#39;</span><span class="p">,</span>
+    <span class="s">&#39;env-purge-doc&#39;</span><span class="p">:</span> <span class="s">&#39;env, docname&#39;</span><span class="p">,</span>
+    <span class="s">&#39;source-read&#39;</span><span class="p">:</span> <span class="s">&#39;docname, source text&#39;</span><span class="p">,</span>
+    <span class="s">&#39;doctree-read&#39;</span><span class="p">:</span> <span class="s">&#39;the doctree before being pickled&#39;</span><span class="p">,</span>
+    <span class="s">&#39;missing-reference&#39;</span><span class="p">:</span> <span class="s">&#39;env, node, contnode&#39;</span><span class="p">,</span>
+    <span class="s">&#39;doctree-resolved&#39;</span><span class="p">:</span> <span class="s">&#39;doctree, docname&#39;</span><span class="p">,</span>
+    <span class="s">&#39;env-updated&#39;</span><span class="p">:</span> <span class="s">&#39;env&#39;</span><span class="p">,</span>
+    <span class="s">&#39;html-collect-pages&#39;</span><span class="p">:</span> <span class="s">&#39;builder&#39;</span><span class="p">,</span>
+    <span class="s">&#39;html-page-context&#39;</span><span class="p">:</span> <span class="s">&#39;pagename, context, doctree or None&#39;</span><span class="p">,</span>
+    <span class="s">&#39;build-finished&#39;</span><span class="p">:</span> <span class="s">&#39;exception&#39;</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="n">CONFIG_FILENAME</span> <span class="o">=</span> <span class="s">&#39;conf.py&#39;</span>
+<span class="n">ENV_PICKLE_FILENAME</span> <span class="o">=</span> <span class="s">&#39;environment.pickle&#39;</span>
+
+
+<div class="viewcode-block" id="Sphinx"><a class="viewcode-back" href="../../build/Sphinx/doc/extdev/appapi.html#sphinx.application.Sphinx">[docs]</a><span class="k">class</span> <span class="nc">Sphinx</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">srcdir</span><span class="p">,</span> <span class="n">confdir</span><span class="p">,</span> <span class="n">outdir</span><span class="p">,</span> <span class="n">doctreedir</span><span class="p">,</span> <span class="n">buildername</span><span class="p">,</span>
+                 <span class="n">confoverrides</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">status</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="p">,</span> <span class="n">warning</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">,</span>
+                 <span class="n">freshenv</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">warningiserror</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">tags</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">verbosity</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+                 <span class="n">parallel</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">verbosity</span> <span class="o">=</span> <span class="n">verbosity</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">next_listener_id</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_extensions</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_listeners</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">domains</span> <span class="o">=</span> <span class="n">BUILTIN_DOMAINS</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">builderclasses</span> <span class="o">=</span> <span class="n">BUILTIN_BUILDERS</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">builder</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">env</span> <span class="o">=</span> <span class="bp">None</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">srcdir</span> <span class="o">=</span> <span class="n">srcdir</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">confdir</span> <span class="o">=</span> <span class="n">confdir</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">outdir</span> <span class="o">=</span> <span class="n">outdir</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">doctreedir</span> <span class="o">=</span> <span class="n">doctreedir</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">parallel</span> <span class="o">=</span> <span class="n">parallel</span>
+
+        <span class="k">if</span> <span class="n">status</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_status</span> <span class="o">=</span> <span class="n">StringIO</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">quiet</span> <span class="o">=</span> <span class="bp">True</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_status</span> <span class="o">=</span> <span class="n">status</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">quiet</span> <span class="o">=</span> <span class="bp">False</span>
+
+        <span class="k">if</span> <span class="n">warning</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_warning</span> <span class="o">=</span> <span class="n">StringIO</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_warning</span> <span class="o">=</span> <span class="n">warning</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_warncount</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">warningiserror</span> <span class="o">=</span> <span class="n">warningiserror</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_events</span> <span class="o">=</span> <span class="n">events</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+
+        <span class="c"># say hello to the world</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">bold</span><span class="p">(</span><span class="s">&#39;Running Sphinx v</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">sphinx</span><span class="o">.</span><span class="n">__version__</span><span class="p">))</span>
+
+        <span class="c"># status code for command-line application</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">statuscode</span> <span class="o">=</span> <span class="mi">0</span>
+
+        <span class="c"># read config</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tags</span> <span class="o">=</span> <span class="n">Tags</span><span class="p">(</span><span class="n">tags</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">config</span> <span class="o">=</span> <span class="n">Config</span><span class="p">(</span><span class="n">confdir</span><span class="p">,</span> <span class="n">CONFIG_FILENAME</span><span class="p">,</span>
+                             <span class="n">confoverrides</span> <span class="ow">or</span> <span class="p">{},</span> <span class="bp">self</span><span class="o">.</span><span class="n">tags</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">check_unicode</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">warn</span><span class="p">)</span>
+
+        <span class="c"># set confdir to srcdir if -C given (!= no confdir); a few pieces</span>
+        <span class="c"># of code expect a confdir to be set</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">confdir</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">confdir</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">srcdir</span>
+
+        <span class="c"># backwards compatibility: activate old C markup</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">setup_extension</span><span class="p">(</span><span class="s">&#39;sphinx.ext.oldcmarkup&#39;</span><span class="p">)</span>
+        <span class="c"># load all user-given extension modules</span>
+        <span class="k">for</span> <span class="n">extension</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">extensions</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">setup_extension</span><span class="p">(</span><span class="n">extension</span><span class="p">)</span>
+        <span class="c"># the config file itself can be an extension</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">setup</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">setup</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+
+        <span class="c"># now that we know all config values, collect them from conf.py</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">init_values</span><span class="p">()</span>
+
+        <span class="c"># check the Sphinx version if requested</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">needs_sphinx</span> <span class="ow">and</span> \
+           <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">needs_sphinx</span> <span class="o">&gt;</span> <span class="n">sphinx</span><span class="o">.</span><span class="n">__version__</span><span class="p">[:</span><span class="mi">3</span><span class="p">]:</span>
+            <span class="k">raise</span> <span class="n">VersionRequirementError</span><span class="p">(</span>
+                <span class="s">&#39;This project needs at least Sphinx v</span><span class="si">%s</span><span class="s"> and therefore cannot &#39;</span>
+                <span class="s">&#39;be built with this version.&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">needs_sphinx</span><span class="p">)</span>
+
+        <span class="c"># set up translation infrastructure</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_init_i18n</span><span class="p">()</span>
+        <span class="c"># set up the build environment</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_init_env</span><span class="p">(</span><span class="n">freshenv</span><span class="p">)</span>
+        <span class="c"># set up the builder</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_init_builder</span><span class="p">(</span><span class="n">buildername</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_init_i18n</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Load translated strings from the configured localedirs if enabled in</span>
+<span class="sd">        the configuration.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">language</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">bold</span><span class="p">(</span><span class="s">&#39;loading translations [</span><span class="si">%s</span><span class="s">]... &#39;</span> <span class="o">%</span>
+                           <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">language</span><span class="p">),</span> <span class="n">nonl</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+            <span class="n">locale_dirs</span> <span class="o">=</span> <span class="p">[</span><span class="bp">None</span><span class="p">,</span> <span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">package_dir</span><span class="p">,</span> <span class="s">&#39;locale&#39;</span><span class="p">)]</span> <span class="o">+</span> \
+                <span class="p">[</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">srcdir</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">locale_dirs</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">locale_dirs</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">translator</span><span class="p">,</span> <span class="n">has_translation</span> <span class="o">=</span> <span class="n">locale</span><span class="o">.</span><span class="n">init</span><span class="p">(</span><span class="n">locale_dirs</span><span class="p">,</span>
+                                                       <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">language</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">language</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">has_translation</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">language</span> <span class="o">==</span> <span class="s">&#39;en&#39;</span><span class="p">:</span>
+                <span class="c"># &quot;en&quot; never needs to be translated</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&#39;done&#39;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&#39;not available for built-in messages&#39;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_init_env</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">freshenv</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">freshenv</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">env</span> <span class="o">=</span> <span class="n">BuildEnvironment</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">srcdir</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">doctreedir</span><span class="p">,</span>
+                                        <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">find_files</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">domain</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">domains</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">domains</span><span class="p">[</span><span class="n">domain</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">domains</span><span class="p">[</span><span class="n">domain</span><span class="p">](</span><span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">bold</span><span class="p">(</span><span class="s">&#39;loading pickled environment... &#39;</span><span class="p">),</span> <span class="n">nonl</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">env</span> <span class="o">=</span> <span class="n">BuildEnvironment</span><span class="o">.</span><span class="n">frompickle</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">,</span>
+                    <span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">doctreedir</span><span class="p">,</span> <span class="n">ENV_PICKLE_FILENAME</span><span class="p">))</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">domains</span> <span class="o">=</span> <span class="p">{}</span>
+                <span class="k">for</span> <span class="n">domain</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">domains</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                    <span class="c"># this can raise if the data version doesn&#39;t fit</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">domains</span><span class="p">[</span><span class="n">domain</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">domains</span><span class="p">[</span><span class="n">domain</span><span class="p">](</span><span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&#39;done&#39;</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">Exception</span><span class="p">,</span> <span class="n">err</span><span class="p">:</span>
+                <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">err</span><span class="p">)</span> <span class="ow">is</span> <span class="ne">IOError</span> <span class="ow">and</span> <span class="n">err</span><span class="o">.</span><span class="n">errno</span> <span class="o">==</span> <span class="n">ENOENT</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&#39;not yet created&#39;</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&#39;failed: </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">err</span><span class="p">)</span>
+                <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_init_env</span><span class="p">(</span><span class="n">freshenv</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">set_warnfunc</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">warn</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_init_builder</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">buildername</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">buildername</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">print</span> <span class="o">&gt;&gt;</span><span class="bp">self</span><span class="o">.</span><span class="n">_status</span><span class="p">,</span> <span class="s">&#39;No builder selected, using default: html&#39;</span>
+            <span class="n">buildername</span> <span class="o">=</span> <span class="s">&#39;html&#39;</span>
+        <span class="k">if</span> <span class="n">buildername</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">builderclasses</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">SphinxError</span><span class="p">(</span><span class="s">&#39;Builder name </span><span class="si">%s</span><span class="s"> not registered&#39;</span> <span class="o">%</span> <span class="n">buildername</span><span class="p">)</span>
+
+        <span class="n">builderclass</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">builderclasses</span><span class="p">[</span><span class="n">buildername</span><span class="p">]</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">builderclass</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">):</span>
+            <span class="c"># builtin builder</span>
+            <span class="n">mod</span><span class="p">,</span> <span class="n">cls</span> <span class="o">=</span> <span class="n">builderclass</span>
+            <span class="n">builderclass</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span>
+                <span class="nb">__import__</span><span class="p">(</span><span class="s">&#39;sphinx.builders.&#39;</span> <span class="o">+</span> <span class="n">mod</span><span class="p">,</span> <span class="bp">None</span><span class="p">,</span> <span class="bp">None</span><span class="p">,</span> <span class="p">[</span><span class="n">cls</span><span class="p">]),</span> <span class="n">cls</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">builder</span> <span class="o">=</span> <span class="n">builderclass</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">emit</span><span class="p">(</span><span class="s">&#39;builder-inited&#39;</span><span class="p">)</span>
+
+    <span class="c"># ---- main &quot;build&quot; method -------------------------------------------------</span>
+
+    <span class="k">def</span> <span class="nf">build</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">force_all</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">filenames</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">force_all</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">builder</span><span class="o">.</span><span class="n">build_all</span><span class="p">()</span>
+            <span class="k">elif</span> <span class="n">filenames</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">builder</span><span class="o">.</span><span class="n">build_specific</span><span class="p">(</span><span class="n">filenames</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">builder</span><span class="o">.</span><span class="n">build_update</span><span class="p">()</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">,</span> <span class="n">err</span><span class="p">:</span>
+            <span class="c"># delete the saved env to force a fresh build next time</span>
+            <span class="n">envfile</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">doctreedir</span><span class="p">,</span> <span class="n">ENV_PICKLE_FILENAME</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">envfile</span><span class="p">):</span>
+                <span class="n">os</span><span class="o">.</span><span class="n">unlink</span><span class="p">(</span><span class="n">envfile</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">emit</span><span class="p">(</span><span class="s">&#39;build-finished&#39;</span><span class="p">,</span> <span class="n">err</span><span class="p">)</span>
+            <span class="k">raise</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">emit</span><span class="p">(</span><span class="s">&#39;build-finished&#39;</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">builder</span><span class="o">.</span><span class="n">cleanup</span><span class="p">()</span>
+
+    <span class="c"># ---- logging handling ----------------------------------------------------</span>
+
+    <span class="k">def</span> <span class="nf">_log</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">message</span><span class="p">,</span> <span class="n">wfile</span><span class="p">,</span> <span class="n">nonl</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">wfile</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">UnicodeEncodeError</span><span class="p">:</span>
+            <span class="n">encoding</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">wfile</span><span class="p">,</span> <span class="s">&#39;encoding&#39;</span><span class="p">,</span> <span class="s">&#39;ascii&#39;</span><span class="p">)</span> <span class="ow">or</span> <span class="s">&#39;ascii&#39;</span>
+            <span class="n">wfile</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">message</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">encoding</span><span class="p">,</span> <span class="s">&#39;replace&#39;</span><span class="p">))</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">nonl</span><span class="p">:</span>
+            <span class="n">wfile</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s">&#39;</span><span class="se">\n</span><span class="s">&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">wfile</span><span class="p">,</span> <span class="s">&#39;flush&#39;</span><span class="p">):</span>
+            <span class="n">wfile</span><span class="o">.</span><span class="n">flush</span><span class="p">()</span>
+
+<div class="viewcode-block" id="Sphinx.warn"><a class="viewcode-back" href="../../build/Sphinx/doc/extdev/appapi.html#sphinx.application.Sphinx.warn">[docs]</a>    <span class="k">def</span> <span class="nf">warn</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">message</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">prefix</span><span class="o">=</span><span class="s">&#39;WARNING: &#39;</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Emit a warning.</span>
+
+<span class="sd">        If *location* is given, it should either be a tuple of (docname, lineno)</span>
+<span class="sd">        or a string describing the location of the warning as well as possible.</span>
+
+<span class="sd">        *prefix* usually should not be changed.</span>
+
+<span class="sd">        .. note::</span>
+
+<span class="sd">           For warnings emitted during parsing, you should use</span>
+<span class="sd">           :meth:`.BuildEnvironment.warn` since that will collect all</span>
+<span class="sd">           warnings during parsing for later output.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">location</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">):</span>
+            <span class="n">docname</span><span class="p">,</span> <span class="n">lineno</span> <span class="o">=</span> <span class="n">location</span>
+            <span class="k">if</span> <span class="n">docname</span><span class="p">:</span>
+                <span class="n">location</span> <span class="o">=</span> <span class="s">&#39;</span><span class="si">%s</span><span class="s">:</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">doc2path</span><span class="p">(</span><span class="n">docname</span><span class="p">),</span> <span class="n">lineno</span> <span class="ow">or</span> <span class="s">&#39;&#39;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">location</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="n">warntext</span> <span class="o">=</span> <span class="n">location</span> <span class="ow">and</span> <span class="s">&#39;</span><span class="si">%s</span><span class="s">: </span><span class="si">%s%s</span><span class="se">\n</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">location</span><span class="p">,</span> <span class="n">prefix</span><span class="p">,</span> <span class="n">message</span><span class="p">)</span> <span class="ow">or</span> \
+                   <span class="s">&#39;</span><span class="si">%s%s</span><span class="se">\n</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">prefix</span><span class="p">,</span> <span class="n">message</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">warningiserror</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">SphinxWarning</span><span class="p">(</span><span class="n">warntext</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_warncount</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="p">(</span><span class="n">warntext</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_warning</span><span class="p">,</span> <span class="bp">True</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Sphinx.info"><a class="viewcode-back" href="../../build/Sphinx/doc/extdev/appapi.html#sphinx.application.Sphinx.info">[docs]</a>    <span class="k">def</span> <span class="nf">info</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">message</span><span class="o">=</span><span class="s">&#39;&#39;</span><span class="p">,</span> <span class="n">nonl</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Emit an informational message.</span>
+
+<span class="sd">        If *nonl* is true, don&#39;t emit a newline at the end (which implies that</span>
+<span class="sd">        more info output will follow soon.)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="p">(</span><span class="n">message</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_status</span><span class="p">,</span> <span class="n">nonl</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Sphinx.verbose"><a class="viewcode-back" href="../../build/Sphinx/doc/extdev/appapi.html#sphinx.application.Sphinx.verbose">[docs]</a>    <span class="k">def</span> <span class="nf">verbose</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">message</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Emit a verbose informational message.</span>
+
+<span class="sd">        The message will only be emitted for verbosity levels &gt;= 1 (i.e. at</span>
+<span class="sd">        least one ``-v`` option was given).</span>
+
+<span class="sd">        The message can contain %-style interpolation placeholders, which is</span>
+<span class="sd">        formatted with either the ``*args`` or ``**kwargs`` when output.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">verbosity</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">return</span>
+        <span class="k">if</span> <span class="n">args</span> <span class="ow">or</span> <span class="n">kwargs</span><span class="p">:</span>
+            <span class="n">message</span> <span class="o">=</span> <span class="n">message</span> <span class="o">%</span> <span class="p">(</span><span class="n">args</span> <span class="ow">or</span> <span class="n">kwargs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="p">(</span><span class="n">message</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_status</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Sphinx.debug"><a class="viewcode-back" href="../../build/Sphinx/doc/extdev/appapi.html#sphinx.application.Sphinx.debug">[docs]</a>    <span class="k">def</span> <span class="nf">debug</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">message</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Emit a debug-level informational message.</span>
+
+<span class="sd">        The message will only be emitted for verbosity levels &gt;= 2 (i.e. at</span>
+<span class="sd">        least two ``-v`` options were given).</span>
+
+<span class="sd">        The message can contain %-style interpolation placeholders, which is</span>
+<span class="sd">        formatted with either the ``*args`` or ``**kwargs`` when output.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">verbosity</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="k">return</span>
+        <span class="k">if</span> <span class="n">args</span> <span class="ow">or</span> <span class="n">kwargs</span><span class="p">:</span>
+            <span class="n">message</span> <span class="o">=</span> <span class="n">message</span> <span class="o">%</span> <span class="p">(</span><span class="n">args</span> <span class="ow">or</span> <span class="n">kwargs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="p">(</span><span class="n">darkgray</span><span class="p">(</span><span class="n">message</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">_status</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Sphinx.debug2"><a class="viewcode-back" href="../../build/Sphinx/doc/extdev/appapi.html#sphinx.application.Sphinx.debug2">[docs]</a>    <span class="k">def</span> <span class="nf">debug2</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">message</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Emit a lowlevel debug-level informational message.</span>
+
+<span class="sd">        The message will only be emitted for verbosity level 3 (i.e. three</span>
+<span class="sd">        ``-v`` options were given).</span>
+
+<span class="sd">        The message can contain %-style interpolation placeholders, which is</span>
+<span class="sd">        formatted with either the ``*args`` or ``**kwargs`` when output.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">verbosity</span> <span class="o">&lt;</span> <span class="mi">3</span><span class="p">:</span>
+            <span class="k">return</span>
+        <span class="k">if</span> <span class="n">args</span> <span class="ow">or</span> <span class="n">kwargs</span><span class="p">:</span>
+            <span class="n">message</span> <span class="o">=</span> <span class="n">message</span> <span class="o">%</span> <span class="p">(</span><span class="n">args</span> <span class="ow">or</span> <span class="n">kwargs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_log</span><span class="p">(</span><span class="n">lightgray</span><span class="p">(</span><span class="n">message</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">_status</span><span class="p">)</span>
+
+    <span class="c"># ---- general extensibility interface -------------------------------------</span>
+</div>
+<div class="viewcode-block" id="Sphinx.setup_extension"><a class="viewcode-back" href="../../build/Sphinx/doc/extdev/appapi.html#sphinx.application.Sphinx.setup_extension">[docs]</a>    <span class="k">def</span> <span class="nf">setup_extension</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">extension</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Import and setup a Sphinx extension module. No-op if called twice.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;[app] setting up extension: </span><span class="si">%r</span><span class="s">&#39;</span><span class="p">,</span> <span class="n">extension</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">extension</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_extensions</span><span class="p">:</span>
+            <span class="k">return</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">mod</span> <span class="o">=</span> <span class="nb">__import__</span><span class="p">(</span><span class="n">extension</span><span class="p">,</span> <span class="bp">None</span><span class="p">,</span> <span class="bp">None</span><span class="p">,</span> <span class="p">[</span><span class="s">&#39;setup&#39;</span><span class="p">])</span>
+        <span class="k">except</span> <span class="ne">ImportError</span><span class="p">,</span> <span class="n">err</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">ExtensionError</span><span class="p">(</span><span class="s">&#39;Could not import extension </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">extension</span><span class="p">,</span>
+                                 <span class="n">err</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">mod</span><span class="p">,</span> <span class="s">&#39;setup&#39;</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s">&#39;extension </span><span class="si">%r</span><span class="s"> has no setup() function; is it really &#39;</span>
+                      <span class="s">&#39;a Sphinx extension module?&#39;</span> <span class="o">%</span> <span class="n">extension</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">mod</span><span class="o">.</span><span class="n">setup</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+            <span class="k">except</span> <span class="n">VersionRequirementError</span><span class="p">,</span> <span class="n">err</span><span class="p">:</span>
+                <span class="c"># add the extension name to the version required</span>
+                <span class="k">raise</span> <span class="n">VersionRequirementError</span><span class="p">(</span>
+                    <span class="s">&#39;The </span><span class="si">%s</span><span class="s"> extension used by this project needs at least &#39;</span>
+                    <span class="s">&#39;Sphinx v</span><span class="si">%s</span><span class="s">; it therefore cannot be built with this &#39;</span>
+                    <span class="s">&#39;version.&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">extension</span><span class="p">,</span> <span class="n">err</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_extensions</span><span class="p">[</span><span class="n">extension</span><span class="p">]</span> <span class="o">=</span> <span class="n">mod</span>
+</div>
+<div class="viewcode-block" id="Sphinx.require_sphinx"><a class="viewcode-back" href="../../build/Sphinx/doc/extdev/appapi.html#sphinx.application.Sphinx.require_sphinx">[docs]</a>    <span class="k">def</span> <span class="nf">require_sphinx</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">version</span><span class="p">):</span>
+        <span class="c"># check the Sphinx version if requested</span>
+        <span class="k">if</span> <span class="n">version</span> <span class="o">&gt;</span> <span class="n">sphinx</span><span class="o">.</span><span class="n">__version__</span><span class="p">[:</span><span class="mi">3</span><span class="p">]:</span>
+            <span class="k">raise</span> <span class="n">VersionRequirementError</span><span class="p">(</span><span class="n">version</span><span class="p">)</span>
+</div>
+    <span class="k">def</span> <span class="nf">import_object</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">objname</span><span class="p">,</span> <span class="n">source</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Import an object from a &#39;module.name&#39; string.&quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">module</span><span class="p">,</span> <span class="n">name</span> <span class="o">=</span> <span class="n">objname</span><span class="o">.</span><span class="n">rsplit</span><span class="p">(</span><span class="s">&#39;.&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">ValueError</span><span class="p">,</span> <span class="n">err</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">ExtensionError</span><span class="p">(</span><span class="s">&#39;Invalid full object name </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">objname</span> <span class="o">+</span>
+                                 <span class="p">(</span><span class="n">source</span> <span class="ow">and</span> <span class="s">&#39; (needed for </span><span class="si">%s</span><span class="s">)&#39;</span> <span class="o">%</span> <span class="n">source</span> <span class="ow">or</span> <span class="s">&#39;&#39;</span><span class="p">),</span>
+                                 <span class="n">err</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">return</span> <span class="nb">getattr</span><span class="p">(</span><span class="nb">__import__</span><span class="p">(</span><span class="n">module</span><span class="p">,</span> <span class="bp">None</span><span class="p">,</span> <span class="bp">None</span><span class="p">,</span> <span class="p">[</span><span class="n">name</span><span class="p">]),</span> <span class="n">name</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">ImportError</span><span class="p">,</span> <span class="n">err</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">ExtensionError</span><span class="p">(</span><span class="s">&#39;Could not import </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">module</span> <span class="o">+</span>
+                                 <span class="p">(</span><span class="n">source</span> <span class="ow">and</span> <span class="s">&#39; (needed for </span><span class="si">%s</span><span class="s">)&#39;</span> <span class="o">%</span> <span class="n">source</span> <span class="ow">or</span> <span class="s">&#39;&#39;</span><span class="p">),</span>
+                                 <span class="n">err</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">,</span> <span class="n">err</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">ExtensionError</span><span class="p">(</span><span class="s">&#39;Could not find </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">objname</span> <span class="o">+</span>
+                                 <span class="p">(</span><span class="n">source</span> <span class="ow">and</span> <span class="s">&#39; (needed for </span><span class="si">%s</span><span class="s">)&#39;</span> <span class="o">%</span> <span class="n">source</span> <span class="ow">or</span> <span class="s">&#39;&#39;</span><span class="p">),</span>
+                                 <span class="n">err</span><span class="p">)</span>
+
+    <span class="c"># event interface</span>
+
+    <span class="k">def</span> <span class="nf">_validate_event</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">event</span><span class="p">):</span>
+        <span class="n">event</span> <span class="o">=</span> <span class="nb">intern</span><span class="p">(</span><span class="n">event</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">event</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_events</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">ExtensionError</span><span class="p">(</span><span class="s">&#39;Unknown event name: </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="n">event</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Sphinx.connect"><a class="viewcode-back" href="../../build/Sphinx/doc/extdev/appapi.html#sphinx.application.Sphinx.connect">[docs]</a>    <span class="k">def</span> <span class="nf">connect</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">event</span><span class="p">,</span> <span class="n">callback</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_validate_event</span><span class="p">(</span><span class="n">event</span><span class="p">)</span>
+        <span class="n">listener_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">next_listener_id</span>
+        <span class="k">if</span> <span class="n">event</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_listeners</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_listeners</span><span class="p">[</span><span class="n">event</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="n">listener_id</span><span class="p">:</span> <span class="n">callback</span><span class="p">}</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_listeners</span><span class="p">[</span><span class="n">event</span><span class="p">][</span><span class="n">listener_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">callback</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">next_listener_id</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;[app] connecting event </span><span class="si">%r</span><span class="s">: </span><span class="si">%r</span><span class="s"> [id=</span><span class="si">%s</span><span class="s">]&#39;</span><span class="p">,</span>
+                   <span class="n">event</span><span class="p">,</span> <span class="n">callback</span><span class="p">,</span> <span class="n">listener_id</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">listener_id</span>
+</div>
+<div class="viewcode-block" id="Sphinx.disconnect"><a class="viewcode-back" href="../../build/Sphinx/doc/extdev/appapi.html#sphinx.application.Sphinx.disconnect">[docs]</a>    <span class="k">def</span> <span class="nf">disconnect</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">listener_id</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;[app] disconnecting event: [id=</span><span class="si">%s</span><span class="s">]&#39;</span><span class="p">,</span> <span class="n">listener_id</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">event</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_listeners</span><span class="o">.</span><span class="n">itervalues</span><span class="p">():</span>
+            <span class="n">event</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">listener_id</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Sphinx.emit"><a class="viewcode-back" href="../../build/Sphinx/doc/extdev/appapi.html#sphinx.application.Sphinx.emit">[docs]</a>    <span class="k">def</span> <span class="nf">emit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">event</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">debug2</span><span class="p">(</span><span class="s">&#39;[app] emitting event: </span><span class="si">%r%s</span><span class="s">&#39;</span><span class="p">,</span> <span class="n">event</span><span class="p">,</span> <span class="nb">repr</span><span class="p">(</span><span class="n">args</span><span class="p">)[:</span><span class="mi">100</span><span class="p">])</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>  <span class="c"># not every object likes to be repr()&#39;d (think</span>
+                           <span class="c"># random stuff coming via autodoc)</span>
+            <span class="k">pass</span>
+        <span class="n">results</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">if</span> <span class="n">event</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_listeners</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">callback</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_listeners</span><span class="p">[</span><span class="n">event</span><span class="p">]</span><span class="o">.</span><span class="n">iteritems</span><span class="p">():</span>
+                <span class="n">results</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">callback</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">results</span>
+</div>
+<div class="viewcode-block" id="Sphinx.emit_firstresult"><a class="viewcode-back" href="../../build/Sphinx/doc/extdev/appapi.html#sphinx.application.Sphinx.emit_firstresult">[docs]</a>    <span class="k">def</span> <span class="nf">emit_firstresult</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">event</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">result</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">emit</span><span class="p">(</span><span class="n">event</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">result</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">result</span>
+        <span class="k">return</span> <span class="bp">None</span>
+
+    <span class="c"># registering addon parts</span>
+</div>
+<div class="viewcode-block" id="Sphinx.add_builder"><a class="viewcode-back" href="../../build/Sphinx/doc/extdev/appapi.html#sphinx.application.Sphinx.add_builder">[docs]</a>    <span class="k">def</span> <span class="nf">add_builder</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">builder</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;[app] adding builder: </span><span class="si">%r</span><span class="s">&#39;</span><span class="p">,</span> <span class="n">builder</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">builder</span><span class="p">,</span> <span class="s">&#39;name&#39;</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="n">ExtensionError</span><span class="p">(</span><span class="s">&#39;Builder class </span><span class="si">%s</span><span class="s"> has no &quot;name&quot; attribute&#39;</span>
+                                 <span class="o">%</span> <span class="n">builder</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">builder</span><span class="o">.</span><span class="n">name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">builderclasses</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">builderclasses</span><span class="p">[</span><span class="n">builder</span><span class="o">.</span><span class="n">name</span><span class="p">],</span> <span class="nb">tuple</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="n">ExtensionError</span><span class="p">(</span><span class="s">&#39;Builder </span><span class="si">%r</span><span class="s"> is a builtin builder&#39;</span> <span class="o">%</span>
+                                     <span class="n">builder</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">ExtensionError</span><span class="p">(</span>
+                    <span class="s">&#39;Builder </span><span class="si">%r</span><span class="s"> already exists (in module </span><span class="si">%s</span><span class="s">)&#39;</span> <span class="o">%</span> <span class="p">(</span>
+                    <span class="n">builder</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">builderclasses</span><span class="p">[</span><span class="n">builder</span><span class="o">.</span><span class="n">name</span><span class="p">]</span><span class="o">.</span><span class="n">__module__</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">builderclasses</span><span class="p">[</span><span class="n">builder</span><span class="o">.</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">builder</span>
+</div>
+<div class="viewcode-block" id="Sphinx.add_config_value"><a class="viewcode-back" href="../../build/Sphinx/doc/extdev/appapi.html#sphinx.application.Sphinx.add_config_value">[docs]</a>    <span class="k">def</span> <span class="nf">add_config_value</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">default</span><span class="p">,</span> <span class="n">rebuild</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;[app] adding config value: </span><span class="si">%r</span><span class="s">&#39;</span><span class="p">,</span> <span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">default</span><span class="p">,</span> <span class="n">rebuild</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">values</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">ExtensionError</span><span class="p">(</span><span class="s">&#39;Config value </span><span class="si">%r</span><span class="s"> already present&#39;</span> <span class="o">%</span> <span class="n">name</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">rebuild</span> <span class="ow">in</span> <span class="p">(</span><span class="bp">False</span><span class="p">,</span> <span class="bp">True</span><span class="p">):</span>
+            <span class="n">rebuild</span> <span class="o">=</span> <span class="n">rebuild</span> <span class="ow">and</span> <span class="s">&#39;env&#39;</span> <span class="ow">or</span> <span class="s">&#39;&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">values</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">default</span><span class="p">,</span> <span class="n">rebuild</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Sphinx.add_event"><a class="viewcode-back" href="../../build/Sphinx/doc/extdev/appapi.html#sphinx.application.Sphinx.add_event">[docs]</a>    <span class="k">def</span> <span class="nf">add_event</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;[app] adding event: </span><span class="si">%r</span><span class="s">&#39;</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_events</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">ExtensionError</span><span class="p">(</span><span class="s">&#39;Event </span><span class="si">%r</span><span class="s"> already present&#39;</span> <span class="o">%</span> <span class="n">name</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_events</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="s">&#39;&#39;</span>
+</div>
+<div class="viewcode-block" id="Sphinx.add_node"><a class="viewcode-back" href="../../build/Sphinx/doc/extdev/appapi.html#sphinx.application.Sphinx.add_node">[docs]</a>    <span class="k">def</span> <span class="nf">add_node</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">node</span><span class="p">,</span> <span class="o">**</span><span class="n">kwds</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;[app] adding node: </span><span class="si">%r</span><span class="s">&#39;</span><span class="p">,</span> <span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="n">kwds</span><span class="p">))</span>
+        <span class="n">nodes</span><span class="o">.</span><span class="n">_add_node_class_names</span><span class="p">([</span><span class="n">node</span><span class="o">.</span><span class="n">__name__</span><span class="p">])</span>
+        <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">kwds</span><span class="o">.</span><span class="n">iteritems</span><span class="p">():</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">visit</span><span class="p">,</span> <span class="n">depart</span> <span class="o">=</span> <span class="n">val</span>
+            <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">ExtensionError</span><span class="p">(</span><span class="s">&#39;Value for key </span><span class="si">%r</span><span class="s"> must be a &#39;</span>
+                                     <span class="s">&#39;(visit, depart) function tuple&#39;</span> <span class="o">%</span> <span class="n">key</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">key</span> <span class="o">==</span> <span class="s">&#39;html&#39;</span><span class="p">:</span>
+                <span class="kn">from</span> <span class="nn">sphinx.writers.html</span> <span class="kn">import</span> <span class="n">HTMLTranslator</span> <span class="k">as</span> <span class="n">translator</span>
+            <span class="k">elif</span> <span class="n">key</span> <span class="o">==</span> <span class="s">&#39;latex&#39;</span><span class="p">:</span>
+                <span class="kn">from</span> <span class="nn">sphinx.writers.latex</span> <span class="kn">import</span> <span class="n">LaTeXTranslator</span> <span class="k">as</span> <span class="n">translator</span>
+            <span class="k">elif</span> <span class="n">key</span> <span class="o">==</span> <span class="s">&#39;text&#39;</span><span class="p">:</span>
+                <span class="kn">from</span> <span class="nn">sphinx.writers.text</span> <span class="kn">import</span> <span class="n">TextTranslator</span> <span class="k">as</span> <span class="n">translator</span>
+            <span class="k">elif</span> <span class="n">key</span> <span class="o">==</span> <span class="s">&#39;man&#39;</span><span class="p">:</span>
+                <span class="kn">from</span> <span class="nn">sphinx.writers.manpage</span> <span class="kn">import</span> <span class="n">ManualPageTranslator</span> \
+                    <span class="k">as</span> <span class="n">translator</span>
+            <span class="k">elif</span> <span class="n">key</span> <span class="o">==</span> <span class="s">&#39;texinfo&#39;</span><span class="p">:</span>
+                <span class="kn">from</span> <span class="nn">sphinx.writers.texinfo</span> <span class="kn">import</span> <span class="n">TexinfoTranslator</span> \
+                    <span class="k">as</span> <span class="n">translator</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c"># ignore invalid keys for compatibility</span>
+                <span class="k">continue</span>
+            <span class="nb">setattr</span><span class="p">(</span><span class="n">translator</span><span class="p">,</span> <span class="s">&#39;visit_&#39;</span><span class="o">+</span><span class="n">node</span><span class="o">.</span><span class="n">__name__</span><span class="p">,</span> <span class="n">visit</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">depart</span><span class="p">:</span>
+                <span class="nb">setattr</span><span class="p">(</span><span class="n">translator</span><span class="p">,</span> <span class="s">&#39;depart_&#39;</span><span class="o">+</span><span class="n">node</span><span class="o">.</span><span class="n">__name__</span><span class="p">,</span> <span class="n">depart</span><span class="p">)</span>
+</div>
+    <span class="k">def</span> <span class="nf">_directive_helper</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">,</span> <span class="n">content</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">arguments</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="o">**</span><span class="n">options</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="p">(</span><span class="n">types</span><span class="o">.</span><span class="n">FunctionType</span><span class="p">,</span> <span class="n">types</span><span class="o">.</span><span class="n">MethodType</span><span class="p">)):</span>
+            <span class="n">obj</span><span class="o">.</span><span class="n">content</span> <span class="o">=</span> <span class="n">content</span>
+            <span class="n">obj</span><span class="o">.</span><span class="n">arguments</span> <span class="o">=</span> <span class="n">arguments</span> <span class="ow">or</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="bp">False</span><span class="p">)</span>
+            <span class="n">obj</span><span class="o">.</span><span class="n">options</span> <span class="o">=</span> <span class="n">options</span>
+            <span class="k">return</span> <span class="n">convert_directive_function</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">content</span> <span class="ow">or</span> <span class="n">arguments</span> <span class="ow">or</span> <span class="n">options</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">ExtensionError</span><span class="p">(</span><span class="s">&#39;when adding directive classes, no &#39;</span>
+                                     <span class="s">&#39;additional arguments may be given&#39;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">obj</span>
+
+<div class="viewcode-block" id="Sphinx.add_directive"><a class="viewcode-back" href="../../build/Sphinx/doc/extdev/appapi.html#sphinx.application.Sphinx.add_directive">[docs]</a>    <span class="k">def</span> <span class="nf">add_directive</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">obj</span><span class="p">,</span> <span class="n">content</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">arguments</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="o">**</span><span class="n">options</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;[app] adding directive: </span><span class="si">%r</span><span class="s">&#39;</span><span class="p">,</span>
+                   <span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">obj</span><span class="p">,</span> <span class="n">content</span><span class="p">,</span> <span class="n">arguments</span><span class="p">,</span> <span class="n">options</span><span class="p">))</span>
+        <span class="n">directives</span><span class="o">.</span><span class="n">register_directive</span><span class="p">(</span>
+            <span class="n">name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_directive_helper</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">content</span><span class="p">,</span> <span class="n">arguments</span><span class="p">,</span> <span class="o">**</span><span class="n">options</span><span class="p">))</span>
+</div>
+<div class="viewcode-block" id="Sphinx.add_role"><a class="viewcode-back" href="../../build/Sphinx/doc/extdev/appapi.html#sphinx.application.Sphinx.add_role">[docs]</a>    <span class="k">def</span> <span class="nf">add_role</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">role</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;[app] adding role: </span><span class="si">%r</span><span class="s">&#39;</span><span class="p">,</span> <span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">role</span><span class="p">))</span>
+        <span class="n">roles</span><span class="o">.</span><span class="n">register_local_role</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">role</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Sphinx.add_generic_role"><a class="viewcode-back" href="../../build/Sphinx/doc/extdev/appapi.html#sphinx.application.Sphinx.add_generic_role">[docs]</a>    <span class="k">def</span> <span class="nf">add_generic_role</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">nodeclass</span><span class="p">):</span>
+        <span class="c"># don&#39;t use roles.register_generic_role because it uses</span>
+        <span class="c"># register_canonical_role</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;[app] adding generic role: </span><span class="si">%r</span><span class="s">&#39;</span><span class="p">,</span> <span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">nodeclass</span><span class="p">))</span>
+        <span class="n">role</span> <span class="o">=</span> <span class="n">roles</span><span class="o">.</span><span class="n">GenericRole</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">nodeclass</span><span class="p">)</span>
+        <span class="n">roles</span><span class="o">.</span><span class="n">register_local_role</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">role</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Sphinx.add_domain"><a class="viewcode-back" href="../../build/Sphinx/doc/extdev/appapi.html#sphinx.application.Sphinx.add_domain">[docs]</a>    <span class="k">def</span> <span class="nf">add_domain</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">domain</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;[app] adding domain: </span><span class="si">%r</span><span class="s">&#39;</span><span class="p">,</span> <span class="n">domain</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">domain</span><span class="o">.</span><span class="n">name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">domains</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">ExtensionError</span><span class="p">(</span><span class="s">&#39;domain </span><span class="si">%s</span><span class="s"> already registered&#39;</span> <span class="o">%</span> <span class="n">domain</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">domains</span><span class="p">[</span><span class="n">domain</span><span class="o">.</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">domain</span>
+</div>
+<div class="viewcode-block" id="Sphinx.override_domain"><a class="viewcode-back" href="../../build/Sphinx/doc/extdev/appapi.html#sphinx.application.Sphinx.override_domain">[docs]</a>    <span class="k">def</span> <span class="nf">override_domain</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">domain</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;[app] overriding domain: </span><span class="si">%r</span><span class="s">&#39;</span><span class="p">,</span> <span class="n">domain</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">domain</span><span class="o">.</span><span class="n">name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">domains</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">ExtensionError</span><span class="p">(</span><span class="s">&#39;domain </span><span class="si">%s</span><span class="s"> not yet registered&#39;</span> <span class="o">%</span> <span class="n">domain</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">issubclass</span><span class="p">(</span><span class="n">domain</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">domains</span><span class="p">[</span><span class="n">domain</span><span class="o">.</span><span class="n">name</span><span class="p">]):</span>
+            <span class="k">raise</span> <span class="n">ExtensionError</span><span class="p">(</span><span class="s">&#39;new domain not a subclass of registered </span><span class="si">%s</span><span class="s"> &#39;</span>
+                                 <span class="s">&#39;domain&#39;</span> <span class="o">%</span> <span class="n">domain</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">domains</span><span class="p">[</span><span class="n">domain</span><span class="o">.</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">domain</span>
+</div>
+<div class="viewcode-block" id="Sphinx.add_directive_to_domain"><a class="viewcode-back" href="../../build/Sphinx/doc/extdev/appapi.html#sphinx.application.Sphinx.add_directive_to_domain">[docs]</a>    <span class="k">def</span> <span class="nf">add_directive_to_domain</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">domain</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">obj</span><span class="p">,</span>
+                                <span class="n">content</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">arguments</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="o">**</span><span class="n">options</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;[app] adding directive to domain: </span><span class="si">%r</span><span class="s">&#39;</span><span class="p">,</span>
+                   <span class="p">(</span><span class="n">domain</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">obj</span><span class="p">,</span> <span class="n">content</span><span class="p">,</span> <span class="n">arguments</span><span class="p">,</span> <span class="n">options</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">domain</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">domains</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">ExtensionError</span><span class="p">(</span><span class="s">&#39;domain </span><span class="si">%s</span><span class="s"> not yet registered&#39;</span> <span class="o">%</span> <span class="n">domain</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">domains</span><span class="p">[</span><span class="n">domain</span><span class="p">]</span><span class="o">.</span><span class="n">directives</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> \
+            <span class="bp">self</span><span class="o">.</span><span class="n">_directive_helper</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">content</span><span class="p">,</span> <span class="n">arguments</span><span class="p">,</span> <span class="o">**</span><span class="n">options</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Sphinx.add_role_to_domain"><a class="viewcode-back" href="../../build/Sphinx/doc/extdev/appapi.html#sphinx.application.Sphinx.add_role_to_domain">[docs]</a>    <span class="k">def</span> <span class="nf">add_role_to_domain</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">domain</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">role</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;[app] adding role to domain: </span><span class="si">%r</span><span class="s">&#39;</span><span class="p">,</span> <span class="p">(</span><span class="n">domain</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">role</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">domain</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">domains</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">ExtensionError</span><span class="p">(</span><span class="s">&#39;domain </span><span class="si">%s</span><span class="s"> not yet registered&#39;</span> <span class="o">%</span> <span class="n">domain</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">domains</span><span class="p">[</span><span class="n">domain</span><span class="p">]</span><span class="o">.</span><span class="n">roles</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">role</span>
+</div>
+<div class="viewcode-block" id="Sphinx.add_index_to_domain"><a class="viewcode-back" href="../../build/Sphinx/doc/extdev/appapi.html#sphinx.application.Sphinx.add_index_to_domain">[docs]</a>    <span class="k">def</span> <span class="nf">add_index_to_domain</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">domain</span><span class="p">,</span> <span class="n">index</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;[app] adding index to domain: </span><span class="si">%r</span><span class="s">&#39;</span><span class="p">,</span> <span class="p">(</span><span class="n">domain</span><span class="p">,</span> <span class="n">index</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">domain</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">domains</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">ExtensionError</span><span class="p">(</span><span class="s">&#39;domain </span><span class="si">%s</span><span class="s"> not yet registered&#39;</span> <span class="o">%</span> <span class="n">domain</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">domains</span><span class="p">[</span><span class="n">domain</span><span class="p">]</span><span class="o">.</span><span class="n">indices</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">index</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Sphinx.add_object_type"><a class="viewcode-back" href="../../build/Sphinx/doc/extdev/appapi.html#sphinx.application.Sphinx.add_object_type">[docs]</a>    <span class="k">def</span> <span class="nf">add_object_type</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">directivename</span><span class="p">,</span> <span class="n">rolename</span><span class="p">,</span> <span class="n">indextemplate</span><span class="o">=</span><span class="s">&#39;&#39;</span><span class="p">,</span>
+                        <span class="n">parse_node</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">ref_nodeclass</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">objname</span><span class="o">=</span><span class="s">&#39;&#39;</span><span class="p">,</span>
+                        <span class="n">doc_field_types</span><span class="o">=</span><span class="p">[]):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;[app] adding object type: </span><span class="si">%r</span><span class="s">&#39;</span><span class="p">,</span>
+                   <span class="p">(</span><span class="n">directivename</span><span class="p">,</span> <span class="n">rolename</span><span class="p">,</span> <span class="n">indextemplate</span><span class="p">,</span> <span class="n">parse_node</span><span class="p">,</span>
+                    <span class="n">ref_nodeclass</span><span class="p">,</span> <span class="n">objname</span><span class="p">,</span> <span class="n">doc_field_types</span><span class="p">))</span>
+        <span class="n">StandardDomain</span><span class="o">.</span><span class="n">object_types</span><span class="p">[</span><span class="n">directivename</span><span class="p">]</span> <span class="o">=</span> \
+            <span class="n">ObjType</span><span class="p">(</span><span class="n">objname</span> <span class="ow">or</span> <span class="n">directivename</span><span class="p">,</span> <span class="n">rolename</span><span class="p">)</span>
+        <span class="c"># create a subclass of GenericObject as the new directive</span>
+        <span class="n">new_directive</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="n">directivename</span><span class="p">,</span> <span class="p">(</span><span class="n">GenericObject</span><span class="p">,</span> <span class="nb">object</span><span class="p">),</span>
+                             <span class="p">{</span><span class="s">&#39;indextemplate&#39;</span><span class="p">:</span> <span class="n">indextemplate</span><span class="p">,</span>
+                              <span class="s">&#39;parse_node&#39;</span><span class="p">:</span> <span class="nb">staticmethod</span><span class="p">(</span><span class="n">parse_node</span><span class="p">),</span>
+                              <span class="s">&#39;doc_field_types&#39;</span><span class="p">:</span> <span class="n">doc_field_types</span><span class="p">})</span>
+        <span class="n">StandardDomain</span><span class="o">.</span><span class="n">directives</span><span class="p">[</span><span class="n">directivename</span><span class="p">]</span> <span class="o">=</span> <span class="n">new_directive</span>
+        <span class="c"># XXX support more options?</span>
+        <span class="n">StandardDomain</span><span class="o">.</span><span class="n">roles</span><span class="p">[</span><span class="n">rolename</span><span class="p">]</span> <span class="o">=</span> <span class="n">XRefRole</span><span class="p">(</span><span class="n">innernodeclass</span><span class="o">=</span><span class="n">ref_nodeclass</span><span class="p">)</span>
+
+    <span class="c"># backwards compatible alias</span></div>
+    <span class="n">add_description_unit</span> <span class="o">=</span> <span class="n">add_object_type</span>
+
+<div class="viewcode-block" id="Sphinx.add_crossref_type"><a class="viewcode-back" href="../../build/Sphinx/doc/extdev/appapi.html#sphinx.application.Sphinx.add_crossref_type">[docs]</a>    <span class="k">def</span> <span class="nf">add_crossref_type</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">directivename</span><span class="p">,</span> <span class="n">rolename</span><span class="p">,</span> <span class="n">indextemplate</span><span class="o">=</span><span class="s">&#39;&#39;</span><span class="p">,</span>
+                          <span class="n">ref_nodeclass</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">objname</span><span class="o">=</span><span class="s">&#39;&#39;</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;[app] adding crossref type: </span><span class="si">%r</span><span class="s">&#39;</span><span class="p">,</span>
+                   <span class="p">(</span><span class="n">directivename</span><span class="p">,</span> <span class="n">rolename</span><span class="p">,</span> <span class="n">indextemplate</span><span class="p">,</span> <span class="n">ref_nodeclass</span><span class="p">,</span>
+                    <span class="n">objname</span><span class="p">))</span>
+        <span class="n">StandardDomain</span><span class="o">.</span><span class="n">object_types</span><span class="p">[</span><span class="n">directivename</span><span class="p">]</span> <span class="o">=</span> \
+            <span class="n">ObjType</span><span class="p">(</span><span class="n">objname</span> <span class="ow">or</span> <span class="n">directivename</span><span class="p">,</span> <span class="n">rolename</span><span class="p">)</span>
+        <span class="c"># create a subclass of Target as the new directive</span>
+        <span class="n">new_directive</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="n">directivename</span><span class="p">,</span> <span class="p">(</span><span class="n">Target</span><span class="p">,</span> <span class="nb">object</span><span class="p">),</span>
+                             <span class="p">{</span><span class="s">&#39;indextemplate&#39;</span><span class="p">:</span> <span class="n">indextemplate</span><span class="p">})</span>
+        <span class="n">StandardDomain</span><span class="o">.</span><span class="n">directives</span><span class="p">[</span><span class="n">directivename</span><span class="p">]</span> <span class="o">=</span> <span class="n">new_directive</span>
+        <span class="c"># XXX support more options?</span>
+        <span class="n">StandardDomain</span><span class="o">.</span><span class="n">roles</span><span class="p">[</span><span class="n">rolename</span><span class="p">]</span> <span class="o">=</span> <span class="n">XRefRole</span><span class="p">(</span><span class="n">innernodeclass</span><span class="o">=</span><span class="n">ref_nodeclass</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Sphinx.add_transform"><a class="viewcode-back" href="../../build/Sphinx/doc/extdev/appapi.html#sphinx.application.Sphinx.add_transform">[docs]</a>    <span class="k">def</span> <span class="nf">add_transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">transform</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;[app] adding transform: </span><span class="si">%r</span><span class="s">&#39;</span><span class="p">,</span> <span class="n">transform</span><span class="p">)</span>
+        <span class="n">SphinxStandaloneReader</span><span class="o">.</span><span class="n">transforms</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">transform</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Sphinx.add_javascript"><a class="viewcode-back" href="../../build/Sphinx/doc/extdev/appapi.html#sphinx.application.Sphinx.add_javascript">[docs]</a>    <span class="k">def</span> <span class="nf">add_javascript</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filename</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;[app] adding javascript: </span><span class="si">%r</span><span class="s">&#39;</span><span class="p">,</span> <span class="n">filename</span><span class="p">)</span>
+        <span class="kn">from</span> <span class="nn">sphinx.builders.html</span> <span class="kn">import</span> <span class="n">StandaloneHTMLBuilder</span>
+        <span class="k">if</span> <span class="s">&#39;://&#39;</span> <span class="ow">in</span> <span class="n">filename</span><span class="p">:</span>
+            <span class="n">StandaloneHTMLBuilder</span><span class="o">.</span><span class="n">script_files</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">StandaloneHTMLBuilder</span><span class="o">.</span><span class="n">script_files</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="n">posixpath</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="s">&#39;_static&#39;</span><span class="p">,</span> <span class="n">filename</span><span class="p">))</span>
+</div>
+<div class="viewcode-block" id="Sphinx.add_stylesheet"><a class="viewcode-back" href="../../build/Sphinx/doc/extdev/appapi.html#sphinx.application.Sphinx.add_stylesheet">[docs]</a>    <span class="k">def</span> <span class="nf">add_stylesheet</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filename</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;[app] adding stylesheet: </span><span class="si">%r</span><span class="s">&#39;</span><span class="p">,</span> <span class="n">filename</span><span class="p">)</span>
+        <span class="kn">from</span> <span class="nn">sphinx.builders.html</span> <span class="kn">import</span> <span class="n">StandaloneHTMLBuilder</span>
+        <span class="k">if</span> <span class="s">&#39;://&#39;</span> <span class="ow">in</span> <span class="n">filename</span><span class="p">:</span>
+            <span class="n">StandaloneHTMLBuilder</span><span class="o">.</span><span class="n">css_files</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">StandaloneHTMLBuilder</span><span class="o">.</span><span class="n">css_files</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="n">posixpath</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="s">&#39;_static&#39;</span><span class="p">,</span> <span class="n">filename</span><span class="p">))</span>
+</div>
+<div class="viewcode-block" id="Sphinx.add_lexer"><a class="viewcode-back" href="../../build/Sphinx/doc/extdev/appapi.html#sphinx.application.Sphinx.add_lexer">[docs]</a>    <span class="k">def</span> <span class="nf">add_lexer</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">alias</span><span class="p">,</span> <span class="n">lexer</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;[app] adding lexer: </span><span class="si">%r</span><span class="s">&#39;</span><span class="p">,</span> <span class="p">(</span><span class="n">alias</span><span class="p">,</span> <span class="n">lexer</span><span class="p">))</span>
+        <span class="kn">from</span> <span class="nn">sphinx.highlighting</span> <span class="kn">import</span> <span class="n">lexers</span>
+        <span class="k">if</span> <span class="n">lexers</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">return</span>
+        <span class="n">lexers</span><span class="p">[</span><span class="n">alias</span><span class="p">]</span> <span class="o">=</span> <span class="n">lexer</span>
+</div>
+<div class="viewcode-block" id="Sphinx.add_autodocumenter"><a class="viewcode-back" href="../../build/Sphinx/doc/extdev/appapi.html#sphinx.application.Sphinx.add_autodocumenter">[docs]</a>    <span class="k">def</span> <span class="nf">add_autodocumenter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cls</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;[app] adding autodocumenter: </span><span class="si">%r</span><span class="s">&#39;</span><span class="p">,</span> <span class="n">cls</span><span class="p">)</span>
+        <span class="kn">from</span> <span class="nn">sphinx.ext</span> <span class="kn">import</span> <span class="n">autodoc</span>
+        <span class="n">autodoc</span><span class="o">.</span><span class="n">add_documenter</span><span class="p">(</span><span class="n">cls</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_directive</span><span class="p">(</span><span class="s">&#39;auto&#39;</span> <span class="o">+</span> <span class="n">cls</span><span class="o">.</span><span class="n">objtype</span><span class="p">,</span> <span class="n">autodoc</span><span class="o">.</span><span class="n">AutoDirective</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Sphinx.add_autodoc_attrgetter"><a class="viewcode-back" href="../../build/Sphinx/doc/extdev/appapi.html#sphinx.application.Sphinx.add_autodoc_attrgetter">[docs]</a>    <span class="k">def</span> <span class="nf">add_autodoc_attrgetter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">type</span><span class="p">,</span> <span class="n">getter</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;[app] adding autodoc attrgetter: </span><span class="si">%r</span><span class="s">&#39;</span><span class="p">,</span> <span class="p">(</span><span class="nb">type</span><span class="p">,</span> <span class="n">getter</span><span class="p">))</span>
+        <span class="kn">from</span> <span class="nn">sphinx.ext</span> <span class="kn">import</span> <span class="n">autodoc</span>
+        <span class="n">autodoc</span><span class="o">.</span><span class="n">AutoDirective</span><span class="o">.</span><span class="n">_special_attrgetters</span><span class="p">[</span><span class="nb">type</span><span class="p">]</span> <span class="o">=</span> <span class="n">getter</span>
+</div>
+<div class="viewcode-block" id="Sphinx.add_search_language"><a class="viewcode-back" href="../../build/Sphinx/doc/extdev/appapi.html#sphinx.application.Sphinx.add_search_language">[docs]</a>    <span class="k">def</span> <span class="nf">add_search_language</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cls</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s">&#39;[app] adding search language: </span><span class="si">%r</span><span class="s">&#39;</span><span class="p">,</span> <span class="n">cls</span><span class="p">)</span>
+        <span class="kn">from</span> <span class="nn">sphinx.search</span> <span class="kn">import</span> <span class="n">languages</span><span class="p">,</span> <span class="n">SearchLanguage</span>
+        <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">cls</span><span class="p">,</span> <span class="n">SearchLanguage</span><span class="p">)</span>
+        <span class="n">languages</span><span class="p">[</span><span class="n">cls</span><span class="o">.</span><span class="n">lang</span><span class="p">]</span> <span class="o">=</span> <span class="n">cls</span>
+
+</div></div>
+<div class="viewcode-block" id="TemplateBridge"><a class="viewcode-back" href="../../build/Sphinx/doc/extdev/appapi.html#sphinx.application.TemplateBridge">[docs]</a><span class="k">class</span> <span class="nc">TemplateBridge</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    This class defines the interface for a &quot;template bridge&quot;, that is, a class</span>
+<span class="sd">    that renders templates given a template name and a context.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="TemplateBridge.init"><a class="viewcode-back" href="../../build/Sphinx/doc/extdev/appapi.html#sphinx.application.TemplateBridge.init">[docs]</a>    <span class="k">def</span> <span class="nf">init</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">builder</span><span class="p">,</span> <span class="n">theme</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">dirs</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Called by the builder to initialize the template system.</span>
+
+<span class="sd">        *builder* is the builder object; you&#39;ll probably want to look at the</span>
+<span class="sd">        value of ``builder.config.templates_path``.</span>
+
+<span class="sd">        *theme* is a :class:`sphinx.theming.Theme` object or None; in the latter</span>
+<span class="sd">        case, *dirs* can be list of fixed directories to look for templates.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s">&#39;must be implemented in subclasses&#39;</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="TemplateBridge.newest_template_mtime"><a class="viewcode-back" href="../../build/Sphinx/doc/extdev/appapi.html#sphinx.application.TemplateBridge.newest_template_mtime">[docs]</a>    <span class="k">def</span> <span class="nf">newest_template_mtime</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Called by the builder to determine if output files are outdated</span>
+<span class="sd">        because of template changes.  Return the mtime of the newest template</span>
+<span class="sd">        file that was changed.  The default implementation returns ``0``.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="mi">0</span>
+</div>
+<div class="viewcode-block" id="TemplateBridge.render"><a class="viewcode-back" href="../../build/Sphinx/doc/extdev/appapi.html#sphinx.application.TemplateBridge.render">[docs]</a>    <span class="k">def</span> <span class="nf">render</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">template</span><span class="p">,</span> <span class="n">context</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Called by the builder to render a template given as a filename with</span>
+<span class="sd">        a specified context (a Python dictionary).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s">&#39;must be implemented in subclasses&#39;</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="TemplateBridge.render_string"><a class="viewcode-back" href="../../build/Sphinx/doc/extdev/appapi.html#sphinx.application.TemplateBridge.render_string">[docs]</a>    <span class="k">def</span> <span class="nf">render_string</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">template</span><span class="p">,</span> <span class="n">context</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Called by the builder to render a template given as a string with a</span>
+<span class="sd">        specified context (a Python dictionary).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s">&#39;must be implemented in subclasses&#39;</span><span class="p">)</span></div></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../index.html">LearningStudio API 1.0 documentation</a> &raquo;</li>
+          <li><a href="../index.html" >Module code</a> &raquo;</li>
+          <li><a href="../sphinx.html" >sphinx</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2014, Pearson.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.2.
+    </div>
+  </body>
+</html>

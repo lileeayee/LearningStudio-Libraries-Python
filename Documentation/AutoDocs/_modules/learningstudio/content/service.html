@@ -1,0 +1,1314 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>learningstudio.content.service &mdash; LearningStudio API 1.0 documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '1.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="LearningStudio API 1.0 documentation" href="../../../index.html" />
+    <link rel="up" title="Module code" href="../../index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../index.html">LearningStudio API 1.0 documentation</a> &raquo;</li>
+          <li><a href="../../index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for learningstudio.content.service</h1><div class="highlight"><pre>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">LearningStudio RESTful API Libraries </span>
+<span class="sd">These libraries make it easier to use the LearningStudio Course APIs.</span>
+<span class="sd">Full Documentation is provided with the library. </span>
+
+<span class="sd">Need Help or Have Questions? </span>
+<span class="sd">Please use the PDN Developer Community at https://community.pdn.pearson.com</span>
+
+<span class="sd">:category   LearningStudio Course APIs</span>
+<span class="sd">:author     Wes Williams &lt;wes.williams@pearson.com&gt;</span>
+<span class="sd">:author     Pearson Developer Services Team &lt;apisupport@pearson.com&gt;</span>
+<span class="sd">:copyright  2014 Pearson Education Inc.</span>
+<span class="sd">:license    http://www.apache.org/licenses/LICENSE-2.0  Apache 2.0</span>
+<span class="sd">:version    1.0</span>
+
+<span class="sd">Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
+<span class="sd">you may not use this file except in compliance with the License.</span>
+<span class="sd">You may obtain a copy of the License at</span>
+
+<span class="sd">    http://www.apache.org/licenses/LICENSE-2.0</span>
+
+<span class="sd">Unless required by applicable law or agreed to in writing, software</span>
+<span class="sd">distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="sd">WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="sd">See the License for the specific language governing permissions and</span>
+<span class="sd">limitations under the License.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">service</span>
+<span class="sd">-------</span>
+
+<span class="sd">Defines a class that implements :class:`learningstudio.core.service.BasicService` for the Content API.</span>
+
+
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">from</span> <span class="nn">learningstudio.core.service</span> <span class="kn">import</span> <span class="n">BasicService</span><span class="p">,</span> <span class="n">HttpStatusCode</span>
+<span class="kn">from</span> <span class="nn">learningstudio.oauth.util</span> <span class="kn">import</span> <span class="n">json_loads</span>
+
+<span class="n">PATH_COURSES_ITEMS</span> <span class="o">=</span> <span class="s">&#39;/courses/</span><span class="si">%s</span><span class="s">/items&#39;</span>
+<span class="n">PATH_COURSES_ITEMS_</span> <span class="o">=</span> <span class="s">&#39;/courses/</span><span class="si">%s</span><span class="s">/items/</span><span class="si">%s</span><span class="s">&#39;</span>
+<span class="n">PATH_COURSES_ITEMHIERARCHY</span> <span class="o">=</span> <span class="s">&#39;/courses/</span><span class="si">%s</span><span class="s">/itemHierarchy&#39;</span>
+<span class="n">PATH_COURSES_TEXTMULTIMEDIAS</span> <span class="o">=</span> <span class="s">&#39;/courses/</span><span class="si">%s</span><span class="s">/textMultimedias&#39;</span>
+<span class="n">PATH_COURSES_TEXTMULTIMEDIAS__CONTENTPATH_</span> <span class="o">=</span> <span class="s">&#39;/courses/</span><span class="si">%s</span><span class="s">/textMultimedias/</span><span class="si">%s</span><span class="s">/</span><span class="si">%s</span><span class="s">&#39;</span>
+<span class="n">PATH_COURSES_TEXTMULTIMEDIAS__CONTENTPATH__USESOURCEDOMAIN</span> <span class="o">=</span> <span class="s">&#39;/courses/</span><span class="si">%s</span><span class="s">/textMultimedias/</span><span class="si">%s</span><span class="s">/</span><span class="si">%s</span><span class="s">?useSourceDomain=true&#39;</span>
+<span class="n">PATH_COURSES_TEXTMULTIMEDIAS_</span> <span class="o">=</span> <span class="s">&#39;/courses/</span><span class="si">%s</span><span class="s">/textMultimedias/</span><span class="si">%s</span><span class="s">&#39;</span>
+<span class="n">PATH_COURSES_MSOFFICEDOCUMENTS</span> <span class="o">=</span> <span class="s">&#39;/courses/</span><span class="si">%s</span><span class="s">/msOfficeDocuments&#39;</span>
+<span class="n">PATH_COURSES_MSOFFICEDOCUMENTS_</span> <span class="o">=</span> <span class="s">&#39;/courses/</span><span class="si">%s</span><span class="s">/msOfficeDocuments/</span><span class="si">%s</span><span class="s">&#39;</span>
+<span class="n">PATH_COURSES_MSOFFICEDOCUMENTS_ORIGINALDOCUMENT</span> <span class="o">=</span> <span class="s">&#39;/courses/</span><span class="si">%s</span><span class="s">/msOfficeDocuments/</span><span class="si">%s</span><span class="s">/originalDocument&#39;</span>
+<span class="n">PATH_COURSES_MSOFFICEDOCUMENTS_CONTENT_</span> <span class="o">=</span> <span class="s">&#39;/courses/</span><span class="si">%s</span><span class="s">/msOfficeDocuments/</span><span class="si">%s</span><span class="s">/content/</span><span class="si">%s</span><span class="s">&#39;</span>
+<span class="n">PATH_COURSES_WEBCONTENTUPLOADS</span> <span class="o">=</span> <span class="s">&#39;/courses/</span><span class="si">%s</span><span class="s">/webContentUploads&#39;</span>
+<span class="n">PATH_COURSES_WEBCONTENTUPLOADS_</span> <span class="o">=</span> <span class="s">&#39;/courses/</span><span class="si">%s</span><span class="s">/webContentUploads/</span><span class="si">%s</span><span class="s">&#39;</span>
+<span class="n">PATH_COURSES_WEBCONTENTUPLOADS_ORIGINALDOCUMENT</span> <span class="o">=</span> <span class="s">&#39;/courses/</span><span class="si">%s</span><span class="s">/webContentUploads/</span><span class="si">%s</span><span class="s">/originalDocument&#39;</span>
+<span class="n">PATH_COURSES_WEBCONTENTUPLOADS_CONTENT_</span> <span class="o">=</span> <span class="s">&#39;/courses/</span><span class="si">%s</span><span class="s">/webContentUploads/</span><span class="si">%s</span><span class="s">/content/</span><span class="si">%s</span><span class="s">&#39;</span>
+
+<span class="n">PATH_COURSES_THREADEDDISCUSSIONS_TOPICS_RESPONSEHIEARCHY</span> <span class="o">=</span> <span class="s">&#39;/courses/</span><span class="si">%s</span><span class="s">/threadedDiscussions/</span><span class="si">%s</span><span class="s">/topics/</span><span class="si">%s</span><span class="s">/responseHierarchy&#39;</span>
+<span class="n">PATH_COURSES_THREADEDDISCUSSIONS_TOPICS_RESPONSES_RESPONSEHIEARCHY</span> <span class="o">=</span> <span class="s">&#39;/courses/</span><span class="si">%s</span><span class="s">/threadedDiscussions/</span><span class="si">%s</span><span class="s">/topics/</span><span class="si">%s</span><span class="s">/responses/</span><span class="si">%s</span><span class="s">/responseHierarchy&#39;</span>
+<span class="n">PATH_USERS_COURSES_ITEMS</span> <span class="o">=</span> <span class="s">&#39;/users/</span><span class="si">%s</span><span class="s">/courses/</span><span class="si">%s</span><span class="s">/items&#39;</span>
+<span class="n">PATH_USERS_COURSES_ITEMHIERARCHY</span> <span class="o">=</span> <span class="s">&#39;/users/</span><span class="si">%s</span><span class="s">/courses/</span><span class="si">%s</span><span class="s">/itemHierarchy&#39;</span>
+<span class="n">PATH_USERS_COURSES_THREADEDDISCUSSIONS_TOPICS_USERVIEWRESPONSES_USERVIEWRESPONSES</span> <span class="o">=</span> <span class="s">&#39;/users/</span><span class="si">%s</span><span class="s">/courses/</span><span class="si">%s</span><span class="s">/threadedDiscussions/</span><span class="si">%s</span><span class="s">/topics/</span><span class="si">%s</span><span class="s">/userviewresponses/</span><span class="si">%s</span><span class="s">/userviewresponses&#39;</span>
+<span class="n">PATH_USERS_COURSES_THREADEDDISCUSSIONS_TOPICS_USERVIEWRESPONSES_USERVIEWRESPONSES__DEPTH</span> <span class="o">=</span> <span class="n">PATH_USERS_COURSES_THREADEDDISCUSSIONS_TOPICS_USERVIEWRESPONSES_USERVIEWRESPONSES</span> <span class="o">+</span> <span class="s">&#39;?depth=</span><span class="si">%s</span><span class="s">&#39;</span>
+<span class="n">PATH_USERS_COURSES_THREADEDDISCUSSIONS_TOPICS_USERVIEWRESPONSES</span> <span class="o">=</span> <span class="s">&#39;/users/</span><span class="si">%s</span><span class="s">/courses/</span><span class="si">%s</span><span class="s">/threadedDiscussions/</span><span class="si">%s</span><span class="s">/topics/</span><span class="si">%s</span><span class="s">/userviewresponses&#39;</span>
+<span class="n">PATH_USERS_COURSES_THREADEDDISCUSSIONS_TOPICS_USERVIEWRESPONSES__DEPTH</span> <span class="o">=</span> <span class="n">PATH_USERS_COURSES_THREADEDDISCUSSIONS_TOPICS_USERVIEWRESPONSES</span> <span class="o">+</span> <span class="s">&#39;?depth=</span><span class="si">%s</span><span class="s">&#39;</span>
+
+<span class="n">PATH_USERS_COURSES_THREADEDDISCUSSIONS_TOPICS_RESPONSES_RESPONSECOUNTS</span> <span class="o">=</span> <span class="s">&#39;/users/</span><span class="si">%s</span><span class="s">/courses/</span><span class="si">%s</span><span class="s">/threadedDiscussions/</span><span class="si">%s</span><span class="s">/topics/</span><span class="si">%s</span><span class="s">/responses/</span><span class="si">%s</span><span class="s">/responseCounts&#39;</span>
+<span class="n">PATH_USERS_COURSES_THREADEDDISCUSSIONS_TOPICS_RESPONSES_RESPONSECOUNTS__DEPTH</span> <span class="o">=</span> <span class="n">PATH_USERS_COURSES_THREADEDDISCUSSIONS_TOPICS_RESPONSES_RESPONSECOUNTS</span> <span class="o">+</span> <span class="s">&#39;?depth=</span><span class="si">%s</span><span class="s">&#39;</span>
+<span class="n">PATH_USERS_COURSES_THREADEDDISCUSSIONS_TOPICS_RESPONSECOUNTS</span> <span class="o">=</span> <span class="s">&#39;/users/</span><span class="si">%s</span><span class="s">/courses/</span><span class="si">%s</span><span class="s">/threadedDiscussions/</span><span class="si">%s</span><span class="s">/topics/</span><span class="si">%s</span><span class="s">/responseCounts&#39;</span>
+<span class="n">PATH_USERS_COURSES_THREADEDDISCUSSIONS_TOPICS_RESPONSECOUNTS__DEPTH</span> <span class="o">=</span> <span class="n">PATH_USERS_COURSES_THREADEDDISCUSSIONS_TOPICS_RESPONSECOUNTS</span> <span class="o">+</span> <span class="s">&#39;?depth=</span><span class="si">%s</span><span class="s">&#39;</span>
+
+<span class="n">PATH_COURSES_THREADEDDISCUSSIONS_TOPICS_RESPONSES_RESPONSEBRANCH</span> <span class="o">=</span> <span class="s">&#39;/courses/</span><span class="si">%s</span><span class="s">/threadedDiscussions/</span><span class="si">%s</span><span class="s">/topics/</span><span class="si">%s</span><span class="s">/responses/</span><span class="si">%s</span><span class="s">/responseBranch&#39;</span>
+<span class="n">PATH_COURSES_THREADEDDISCUSSIONS_TOPICS_RESPONSES_RESPONSEAUTHOR</span> <span class="o">=</span> <span class="s">&#39;/courses/</span><span class="si">%s</span><span class="s">/threadedDiscussions/</span><span class="si">%s</span><span class="s">/topics/</span><span class="si">%s</span><span class="s">/responses/</span><span class="si">%s</span><span class="s">/responseAuthor&#39;</span>
+<span class="n">PATH_COURSES_THREADEDDISCUSSIONS_TOPICS_RESPONSES_RESPONSEANDAUTHORCOMPS</span> <span class="o">=</span> <span class="s">&#39;/courses/</span><span class="si">%s</span><span class="s">/threadeddiscussions/</span><span class="si">%s</span><span class="s">/topics/</span><span class="si">%s</span><span class="s">/responses/</span><span class="si">%s</span><span class="s">/responseAndAuthorComps&#39;</span>
+<span class="n">PATH_COURSES_THREADEDDISCUSSIONS_TOPICS_RESPONSES_RESPONSEANDAUTHORCOMPS__DEPTH</span> <span class="o">=</span> <span class="s">&#39;/courses/</span><span class="si">%s</span><span class="s">/threadedDiscussions/</span><span class="si">%s</span><span class="s">/topics/</span><span class="si">%s</span><span class="s">/responses/</span><span class="si">%s</span><span class="s">/responseAndAuthorComps?depth=</span><span class="si">%s</span><span class="s">&#39;</span>
+<span class="n">PATH_COURSES_THREADEDDISCUSSIONS_TOPICS_RESPONSEANDAUTHORCOMPS</span> <span class="o">=</span> <span class="s">&#39;/courses/</span><span class="si">%s</span><span class="s">/threadedDiscussions/</span><span class="si">%s</span><span class="s">/topics/</span><span class="si">%s</span><span class="s">/responseAndAuthorComps&#39;</span>
+<span class="n">PATH_COURSES_THREADEDDISCUSSIONS_TOPICS_RESPONSEANDAUTHORCOMPS__DEPTH</span> <span class="o">=</span> <span class="s">&#39;/courses/</span><span class="si">%s</span><span class="s">/threadedDiscussions/</span><span class="si">%s</span><span class="s">/topics/</span><span class="si">%s</span><span class="s">/responseAndAuthorComps?depth=</span><span class="si">%s</span><span class="s">&#39;</span>
+
+<span class="n">PATH_USERS_COURSES_THREADEDDISCUSSIONS__LASTRESPONSE</span> <span class="o">=</span> <span class="s">&#39;/users/</span><span class="si">%s</span><span class="s">/courses/</span><span class="si">%s</span><span class="s">/threadedDiscussions/lastResponse&#39;</span>
+<span class="n">PATH_COURSES_THREADEDDISCUSSIONS</span> <span class="o">=</span> <span class="s">&#39;/courses/</span><span class="si">%s</span><span class="s">/threadedDiscussions&#39;</span>
+<span class="n">PATH_COURSES_THREADEDDISCUSSIONS__USESOURCEDOMAIN</span> <span class="o">=</span> <span class="s">&#39;/courses/</span><span class="si">%s</span><span class="s">/threadedDiscussions?UseSourceDomain=true&#39;</span>
+<span class="n">PATH_COURSES_THREADEDDISCUSSIONS_TOPICS</span> <span class="o">=</span> <span class="s">&#39;/courses/</span><span class="si">%s</span><span class="s">/threadedDiscussions/</span><span class="si">%s</span><span class="s">/topics&#39;</span>
+<span class="n">PATH_COURSES_THREADEDDISCUSSIONS_TOPICS__USESOURCEDOMAIN</span> <span class="o">=</span> <span class="s">&#39;/courses/</span><span class="si">%s</span><span class="s">/threadedDiscussions/</span><span class="si">%s</span><span class="s">/topics?UseSourceDomain=true&#39;</span>
+<span class="n">PATH_COURSES_THREADEDDISCUSSIONS_TOPICS_</span> <span class="o">=</span> <span class="s">&#39;/courses/</span><span class="si">%s</span><span class="s">/threadedDiscussions/</span><span class="si">%s</span><span class="s">/topics/</span><span class="si">%s</span><span class="s">&#39;</span>
+<span class="n">PATH_COURSES_THREADEDDISCUSSIONS_TOPICS_USESOURCEDOMAIN</span> <span class="o">=</span> <span class="s">&#39;/courses/</span><span class="si">%s</span><span class="s">/threadedDiscussions/</span><span class="si">%s</span><span class="s">/topics/</span><span class="si">%s</span><span class="s">?UseSourceDomain=true&#39;</span>
+
+<span class="n">PATH_USERS_COURSES_THREADEDDISCUSSIONS_TOPICS_RESPONSE_READSTATUS</span> <span class="o">=</span> <span class="s">&#39;/users/</span><span class="si">%s</span><span class="s">/courses/</span><span class="si">%s</span><span class="s">/threadedDiscussions/</span><span class="si">%s</span><span class="s">/topics/</span><span class="si">%s</span><span class="s">/responses/</span><span class="si">%s</span><span class="s">/readStatus&#39;</span>
+<span class="n">PATH_COURSES_THREADEDDISCUSSIONS_TOPICS_RESPONSES_RESPONSES</span> <span class="o">=</span> <span class="s">&#39;/courses/</span><span class="si">%s</span><span class="s">/threadedDiscussions/</span><span class="si">%s</span><span class="s">/topics/</span><span class="si">%s</span><span class="s">/responses/</span><span class="si">%s</span><span class="s">/responses&#39;</span>
+<span class="n">PATH_COURSES_THREADEDDISCUSSIONS_TOPICS_RESPONSES_</span> <span class="o">=</span> <span class="s">&#39;/courses/</span><span class="si">%s</span><span class="s">/threadedDiscussions/</span><span class="si">%s</span><span class="s">/topics/</span><span class="si">%s</span><span class="s">/responses/</span><span class="si">%s</span><span class="s">&#39;</span>
+<span class="n">PATH_COURSES_THREADEDDISCUSSIONS_TOPICS_RESPONSES</span> <span class="o">=</span> <span class="s">&#39;/courses/</span><span class="si">%s</span><span class="s">/threadedDiscussions/</span><span class="si">%s</span><span class="s">/topics/</span><span class="si">%s</span><span class="s">/responses&#39;</span>
+
+<div class="viewcode-block" id="ContentService"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.content.service.ContentService">[docs]</a><span class="k">class</span> <span class="nc">ContentService</span><span class="p">(</span><span class="n">BasicService</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;An implementation of BasicService for handling the Contents API.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">oauth_service_factory</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">ContentService</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">oauth_service_factory</span><span class="p">)</span>
+        
+    <span class="k">def</span> <span class="nf">__getServiceIdentifier</span><span class="p">():</span>
+        <span class="k">return</span> <span class="s">&quot;LS-Library-Content-Python-V1&quot;</span>
+
+<div class="viewcode-block" id="ContentService.getItems"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.content.service.ContentService.getItems">[docs]</a>    <span class="k">def</span> <span class="nf">getItems</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">courseId</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get items for a course with</span>
+<span class="sd">        ``GET /courses/{courseId}/items``</span>
+<span class="sd">        using OAuth1 or OAuth2 as a teacher, teaching assistant or administrator.</span>
+<span class="sd">        </span>
+<span class="sd">        :param courseId: ID of the course.</span>
+<span class="sd">        :type courseId: str</span>
+<span class="sd">        </span>
+<span class="sd">        :returns: A :class:`learningstudio.core.Response` object with details of status and content.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">relativeUrl</span> <span class="o">=</span> <span class="n">PATH_COURSES_ITEMS</span> <span class="o">%</span> <span class="p">(</span><span class="n">courseId</span><span class="p">,)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doGet</span><span class="p">(</span><span class="n">relativeUrl</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="ContentService.getItem"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.content.service.ContentService.getItem">[docs]</a>    <span class="k">def</span> <span class="nf">getItem</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">itemId</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get a specific item for a course with</span>
+<span class="sd">        ``GET /courses/{courseId}/items/{itemId}``</span>
+<span class="sd">        using OAuth1 or OAuth2.</span>
+<span class="sd">        </span>
+<span class="sd">        :param courseId: ID of the course.</span>
+<span class="sd">        :type courseId: str</span>
+<span class="sd">        </span>
+<span class="sd">        :returns: A :class:`learningstudio.core.Response` object with details of status and content.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">relativeUrl</span> <span class="o">=</span> <span class="n">PATH_COURSES_ITEMS_</span> <span class="o">%</span> <span class="p">(</span><span class="n">courseId</span><span class="p">,</span> <span class="n">itemId</span><span class="p">,)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doGet</span><span class="p">(</span><span class="n">relativeUrl</span><span class="p">)</span>
+    </div>
+<div class="viewcode-block" id="ContentService.getItemContent"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.content.service.ContentService.getItemContent">[docs]</a>    <span class="k">def</span> <span class="nf">getItemContent</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">itemId</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get content for a specific item in a course with</span>
+<span class="sd">        ``getItem(courseId, itemId)``</span>
+<span class="sd">        by following the links to the item itself</span>
+<span class="sd">        and next to the contentUrl</span>
+<span class="sd">        </span>
+<span class="sd">        :param courseId: ID of the course.</span>
+<span class="sd">        :type courseId: str</span>
+<span class="sd">        :param itemId: ID of the content item.</span>
+<span class="sd">        :type itemId: str</span>
+<span class="sd">        </span>
+<span class="sd">        :returns: A :class:`learningstudio.core.Response` object with details of status and content.</span>
+<span class="sd">        </span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c"># get the item details</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">getItem</span><span class="p">(</span><span class="n">courseId</span><span class="p">,</span> <span class="n">itemId</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">response</span><span class="o">.</span><span class="n">isError</span><span class="p">():</span>
+            <span class="k">return</span> <span class="n">response</span>
+
+        <span class="n">itemsJson</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">getContent</span><span class="p">()</span>
+        <span class="n">json_data</span> <span class="o">=</span> <span class="n">json_loads</span><span class="p">(</span><span class="n">itemsJson</span><span class="p">)</span>
+        
+        <span class="c"># link to the item is in the link where title is null</span>
+        <span class="n">items</span> <span class="o">=</span> <span class="n">json_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;items&#39;</span><span class="p">)</span>
+        <span class="n">links</span> <span class="o">=</span> <span class="n">items</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s">&#39;links&#39;</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">link</span> <span class="ow">in</span> <span class="n">links</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">link</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;title&#39;</span><span class="p">)</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+                <span class="n">relativeUrl</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__getRelativePath</span><span class="p">(</span><span class="n">link</span><span class="p">[</span><span class="s">&#39;href&#39;</span><span class="p">])</span>
+        
+        <span class="c"># get the item</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">doGet</span><span class="p">(</span><span class="n">relativeUrl</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">response</span><span class="o">.</span><span class="n">isError</span><span class="p">():</span>
+            <span class="k">return</span> <span class="n">response</span>
+        
+        <span class="n">itemJson</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">getContent</span><span class="p">()</span>
+        <span class="n">json_data</span> <span class="o">=</span> <span class="n">json_loads</span><span class="p">(</span><span class="n">itemJson</span><span class="p">)</span>
+        
+        <span class="c"># get the item content location</span>
+        <span class="n">contentType</span><span class="p">,</span> <span class="n">contentPath</span> <span class="o">=</span> <span class="n">json_data</span><span class="o">.</span><span class="n">popitem</span><span class="p">()</span>
+        <span class="n">relativeUrl</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__getRelativePath</span><span class="p">(</span><span class="n">contentPath</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s">&#39;contentUrl&#39;</span><span class="p">])</span>
+        
+        <span class="c"># get and return the item content</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doGet</span><span class="p">(</span><span class="n">relativeUrl</span><span class="p">)</span>
+        
+</div>
+<div class="viewcode-block" id="ContentService.getItemHierarchy"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.content.service.ContentService.getItemHierarchy">[docs]</a>    <span class="k">def</span> <span class="nf">getItemHierarchy</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">courseId</span><span class="p">):</span>
+		<span class="sd">&quot;&quot;&quot;Get item hierarchy for a course with</span>
+<span class="sd">		``GET /courses/{courseId}/itemHierarchy``</span>
+<span class="sd">		using OAuth1 or OAuth2 as a teacher, teaching assistant, or administrator</span>
+<span class="sd">		</span>
+<span class="sd">		:param courseId: ID of the course.</span>
+<span class="sd">        :type courseId: str</span>
+<span class="sd">		</span>
+<span class="sd">		:returns: A :class:`learningstudio.core.Response` object with details of status and content.</span>
+<span class="sd">		&quot;&quot;&quot;</span>
+		
+		<span class="n">relativeUrl</span> <span class="o">=</span> <span class="n">PATH_COURSES_ITEMHIERARCHY</span> <span class="o">%</span> <span class="p">(</span><span class="n">courseId</span><span class="p">,)</span>
+		<span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doGet</span><span class="p">(</span><span class="n">relativeUrl</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="ContentService.getUserItemHierarchy"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.content.service.ContentService.getUserItemHierarchy">[docs]</a>    <span class="k">def</span> <span class="nf">getUserItemHierarchy</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">userId</span><span class="p">,</span> <span class="n">courseId</span><span class="p">):</span>
+		<span class="sd">&quot;&quot;&quot;Get user item hierarchy for a course with</span>
+<span class="sd">		``GET /users/{userId}/courses/{courseId}/itemHierarchy``</span>
+<span class="sd">		using OAuth1 or OAuth2 as a teacher, teaching assistant, or administrator</span>
+<span class="sd">		</span>
+<span class="sd">		:param courseId: ID of the course.</span>
+<span class="sd">        :type courseId: str</span>
+<span class="sd">		</span>
+<span class="sd">		:returns: A :class:`learningstudio.core.Response` object with details of status and content.</span>
+<span class="sd">		&quot;&quot;&quot;</span>
+		
+		<span class="n">relativeUrl</span> <span class="o">=</span> <span class="n">PATH_USERS_COURSES_ITEMHIERARCHY</span> <span class="o">%</span> <span class="p">(</span><span class="n">userId</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,)</span>
+		<span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doGet</span><span class="p">(</span><span class="n">relativeUrl</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="ContentService.getUserItems"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.content.service.ContentService.getUserItems">[docs]</a>    <span class="k">def</span> <span class="nf">getUserItems</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">userId</span><span class="p">,</span> <span class="n">courseId</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get user items in a course with</span>
+<span class="sd">        ``GET /users/{userId}/courses/{courseId}/items``</span>
+<span class="sd">        using OAuth1 or OAuth2 as a teacher, teaching assistant or administrator.</span>
+<span class="sd">        </span>
+<span class="sd">        :param userId: ID of the user.</span>
+<span class="sd">        :type courseId: str</span>
+<span class="sd">        :param courseId: ID of the course.</span>
+<span class="sd">        :type courseId: str</span>
+<span class="sd">        </span>
+<span class="sd">        :returns: A :class:`learningstudio.core.Response` object with details of status and content.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">relativeUrl</span> <span class="o">=</span> <span class="n">PATH_USERS_COURSES_ITEMS</span> <span class="o">%</span> <span class="p">(</span><span class="n">userId</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doGet</span><span class="p">(</span><span class="n">relativeUrl</span><span class="p">)</span>
+    </div>
+<div class="viewcode-block" id="ContentService.getItemLinkDetails"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.content.service.ContentService.getItemLinkDetails">[docs]</a>    <span class="k">def</span> <span class="nf">getItemLinkDetails</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">itemId</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get links details from a specific item for a course with</span>
+<span class="sd">        ``GET /courses/{courseId}/items/{itemId}``</span>
+<span class="sd">        using OAuth2 as a student, teacher or teaching assistant.</span>
+<span class="sd">        </span>
+<span class="sd">        Example JSON structure: (Multimedia item)::</span>
+<span class="sd">        </span>
+<span class="sd">            { &quot;details&quot;: </span>
+<span class="sd">               { &quot;access&quot;: {...}, </span>
+<span class="sd">                 &quot;schedule&quot;: {...}, </span>
+<span class="sd">                 &quot;self&quot;: {...},</span>
+<span class="sd">                 &quot;selfType&quot;: &quot;textMultimedias&quot;</span>
+<span class="sd">               }</span>
+<span class="sd">            }</span>
+<span class="sd">        </span>
+<span class="sd">        :param courseId: ID of the course.</span>
+<span class="sd">        :type courseId: str</span>
+<span class="sd">        :param itemId: ID of the item.</span>
+<span class="sd">        :type itemId: str</span>
+<span class="sd">        </span>
+<span class="sd">        :returns: A :class:`learningstudio.core.Response` object with details of status and content.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">getItem</span><span class="p">(</span><span class="n">courseId</span><span class="p">,</span> <span class="n">itemId</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">response</span><span class="o">.</span><span class="n">isError</span><span class="p">():</span> <span class="k">return</span> <span class="n">response</span>
+        
+        <span class="n">courseItemsJson</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">getContent</span><span class="p">()</span>
+        <span class="n">json_data</span> <span class="o">=</span> <span class="n">json_loads</span><span class="p">(</span><span class="n">courseItemsJson</span><span class="p">)</span>
+        <span class="n">items</span> <span class="o">=</span> <span class="n">json_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;items&#39;</span><span class="p">)</span>
+        <span class="n">detail</span> <span class="o">=</span> <span class="p">{}</span>
+            
+        <span class="k">if</span> <span class="n">items</span> <span class="o">!=</span> <span class="bp">None</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">items</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">items</span><span class="p">:</span>
+                <span class="n">links</span> <span class="o">=</span> <span class="n">item</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;links&#39;</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">link</span> <span class="ow">in</span> <span class="n">links</span><span class="p">:</span>
+                    <span class="n">relativeUrl</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__getRelativePath</span><span class="p">(</span><span class="n">link</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;href&#39;</span><span class="p">))</span>
+                    <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">doGet</span><span class="p">(</span><span class="n">relativeUrl</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">isError</span><span class="p">()):</span> <span class="k">return</span> <span class="n">response</span>
+                    
+                    <span class="n">linkElement</span> <span class="o">=</span> <span class="n">json_loads</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">getContent</span><span class="p">())</span>
+                    <span class="n">title</span> <span class="o">=</span> <span class="n">link</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;title&#39;</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="n">title</span> <span class="o">==</span> <span class="bp">None</span><span class="p">:</span>
+                        <span class="k">if</span> <span class="n">linkElement</span> <span class="o">!=</span> <span class="bp">None</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">linkElement</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                            <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">linkElement</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                                <span class="n">value</span> <span class="o">=</span> <span class="n">linkElement</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+                                <span class="n">detail</span><span class="p">[</span><span class="s">&#39;self&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+                                <span class="n">detail</span><span class="p">[</span><span class="s">&#39;selfType&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">key</span>
+                                <span class="k">break</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">linkElement</span> <span class="o">=</span> <span class="n">linkElement</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">title</span><span class="p">)</span>
+                        <span class="n">detail</span><span class="p">[</span><span class="n">title</span><span class="p">]</span> <span class="o">=</span> <span class="n">linkElement</span>
+                            
+            <span class="n">detailWrapper</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;details&#39;</span><span class="p">:</span> <span class="n">detail</span><span class="p">}</span>
+            <span class="n">response</span><span class="o">.</span><span class="n">setContent</span><span class="p">(</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">detailWrapper</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s">&#39;Unexpected condition in library: No items&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">response</span>
+	</div>
+<div class="viewcode-block" id="ContentService.getTextMultimedias"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.content.service.ContentService.getTextMultimedias">[docs]</a>    <span class="k">def</span> <span class="nf">getTextMultimedias</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">courseId</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get text multimedias by course with</span>
+<span class="sd">        ``GET /courses/{courseId}/textMultimedias``</span>
+<span class="sd">        using OAuth2 as a student, teacher or teaching assistant.</span>
+<span class="sd">            </span>
+<span class="sd">        :param courseId: ID of the course.</span>
+<span class="sd">        :type courseId: str</span>
+<span class="sd">        :param itemId: ID of the item.</span>
+<span class="sd">        :type itemId: str</span>
+<span class="sd">    </span>
+<span class="sd">        :returns: A :class:`learningstudio.core.Response` object with details of status and content.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">relativeUrl</span> <span class="o">=</span> <span class="n">PATH_COURSES_TEXTMULTIMEDIAS</span> <span class="o">%</span> <span class="p">(</span><span class="n">courseId</span><span class="p">,)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doGet</span><span class="p">(</span><span class="n">relativeUrl</span><span class="p">)</span>
+        </div>
+<div class="viewcode-block" id="ContentService.getTextMultimedia"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.content.service.ContentService.getTextMultimedia">[docs]</a>    <span class="k">def</span> <span class="nf">getTextMultimedia</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">textMediaId</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get specific text multimedia content by course with</span>
+<span class="sd">        ``GET /courses/{courseId}/textMultimedias``</span>
+<span class="sd">        using OAuth2 as a student, teacher or teaching assistant.</span>
+<span class="sd">        </span>
+<span class="sd">        :param courseId: ID of the course.</span>
+<span class="sd">        :type courseId: str</span>
+<span class="sd">        :param textMediaId: ID of the text media.</span>
+<span class="sd">        :type textMediaId: str</span>
+<span class="sd">        </span>
+<span class="sd">        :returns: A :class:`learningstudio.core.Response` object with details of status and content.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">relativeUrl</span> <span class="o">=</span> <span class="n">PATH_COURSES_TEXTMULTIMEDIAS_</span> <span class="o">%</span> <span class="p">(</span><span class="n">courseId</span><span class="p">,</span> <span class="n">textMediaId</span><span class="p">,)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doGet</span><span class="p">(</span><span class="n">relativeUrl</span><span class="p">)</span>
+    </div>
+<div class="viewcode-block" id="ContentService.getTextMultimediasContent"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.content.service.ContentService.getTextMultimediasContent">[docs]</a>    <span class="k">def</span> <span class="nf">getTextMultimediasContent</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">textMediaId</span><span class="p">,</span> <span class="n">contentPath</span> <span class="o">=</span> <span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get specific text multimedia content by course with UseSourceDomain parameter with</span>
+<span class="sd">        ``GET /courses/{courseId}/textMultimedias`` and </span>
+<span class="sd">        ``GET /courses/{courseId}/textMultimedias?UseSourceDomain=true``</span>
+<span class="sd">        using OAuth2 as a student, teacher or teaching assistant</span>
+<span class="sd">        </span>
+<span class="sd">        :param courseId: ID of the course.</span>
+<span class="sd">        :type courseId: str</span>
+<span class="sd">        :param itemId: ID of the item.</span>
+<span class="sd">        :type itemId: str</span>
+<span class="sd">        :param contentPath: Path of content.</span>
+<span class="sd">        :type contentPath: str</span>
+<span class="sd">        </span>
+<span class="sd">        :returns: A :class:`learningstudio.core.Response` object with details of status and content</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">contentPath</span> <span class="o">!=</span> <span class="bp">None</span><span class="p">:</span>
+		    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__getTextMultimediasContent</span><span class="p">(</span><span class="n">courseId</span><span class="p">,</span> <span class="n">textMediaId</span><span class="p">,</span> <span class="n">contentPath</span><span class="p">)</span>
+            
+        <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">getTextMultimedia</span><span class="p">(</span><span class="n">courseId</span><span class="p">,</span> <span class="n">textMediaId</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">response</span><span class="o">.</span><span class="n">isError</span><span class="p">():</span> <span class="k">return</span> <span class="n">response</span>
+        
+        <span class="n">json_data</span> <span class="o">=</span> <span class="n">json_loads</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">getContent</span><span class="p">())</span>
+        <span class="n">json_data</span> <span class="o">=</span> <span class="n">json_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;textMultimedias&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">contentUrl</span> <span class="o">=</span> <span class="n">json_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;contentUrl&#39;</span><span class="p">)</span>
+        <span class="n">relativeUrl</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__getRelativePath</span><span class="p">(</span><span class="n">contentUrl</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doGet</span><span class="p">(</span><span class="n">relativeUrl</span><span class="p">)</span>
+        
+        <span class="c">#if use_source_domain != None:</span>
+        <span class="c">#    return self.__getTextMultimediasContent(courseId, textMediaId, contentPath, use_source_domain)</span>
+        <span class="c">#else:</span>
+        <span class="c">#    relativeUrl = PATH_COURSES_TEXTMULTIMEDIAS__CONTENTPATH_ % (courseId, textMediaId, contentPath,)</span>
+        <span class="c">#    return self.doGet(relativeUrl)</span>
+        </div>
+    <span class="k">def</span> <span class="nf">__getTextMultimediasContent</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">textMediaId</span><span class="p">,</span> <span class="n">contentPath</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get specific text multimedia content by course with UseSourceDomain parameter with</span>
+<span class="sd">        ``GET /courses/{courseId}/textMultimedias`` and </span>
+<span class="sd">        ``GET /courses/{courseId}/textMultimedias?UseSourceDomain=true``</span>
+<span class="sd">        using OAuth2 as a student, teacher or teaching assistant.</span>
+<span class="sd">        </span>
+<span class="sd">        :param courseId: ID of the course</span>
+<span class="sd">        :type courseId: str</span>
+<span class="sd">        :param itemId: ID of the item.</span>
+<span class="sd">        :type itemId: str</span>
+<span class="sd">        :param contentPath: Path of content.</span>
+<span class="sd">        :type contentPath: str</span>
+<span class="sd">        </span>
+<span class="sd">        :returns: A :class:`learningstudio.core.Response` object with details of status and content.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">relativeUrl</span> <span class="o">=</span> <span class="n">PATH_COURSES_TEXTMULTIMEDIAS__CONTENTPATH_</span> <span class="o">%</span> <span class="p">(</span><span class="n">courseId</span><span class="p">,</span> <span class="n">textMediaId</span><span class="p">,</span> <span class="n">contentPath</span><span class="p">,)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doGet</span><span class="p">(</span><span class="n">relativeUrl</span><span class="p">)</span>
+
+<div class="viewcode-block" id="ContentService.getMsOfficeDocuments"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.content.service.ContentService.getMsOfficeDocuments">[docs]</a>    <span class="k">def</span> <span class="nf">getMsOfficeDocuments</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">courseId</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get all MS Office documents in a course with</span>
+<span class="sd">        ``GET /courses/{courseId}/msOfficeDocuments``</span>
+<span class="sd">        using OAuth2 as a student, teacher or teaching assistant.</span>
+<span class="sd">        </span>
+<span class="sd">        :param courseId: ID of the course.</span>
+<span class="sd">        :type courseId: str</span>
+<span class="sd">        </span>
+<span class="sd">        :returns: A :class:`learningstudio.core.Response` object with details of status and content.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">relativeUrl</span> <span class="o">=</span> <span class="n">PATH_COURSES_MSOFFICEDOCUMENTS</span> <span class="o">%</span> <span class="p">(</span><span class="n">courseId</span><span class="p">,)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doGet</span><span class="p">(</span><span class="n">relativeUrl</span><span class="p">)</span>
+	</div>
+<div class="viewcode-block" id="ContentService.getMsOfficeDocument"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.content.service.ContentService.getMsOfficeDocument">[docs]</a>    <span class="k">def</span> <span class="nf">getMsOfficeDocument</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">msOfficeDocumentId</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get a specific MS Office document in a course with</span>
+<span class="sd">        ``GET /courses/{courseId}/msOfficeDocuments/{msOfficeDocumentId}``</span>
+<span class="sd">        using OAuth2 as a student, teacher or teaching assistant.</span>
+<span class="sd">        </span>
+<span class="sd">        :param courseId: ID of the course.</span>
+<span class="sd">        :type courseId: str</span>
+<span class="sd">        :param msOfficeDocumentId: ID of the ms office document.</span>
+<span class="sd">        :type msOfficeDocumentId: str</span>
+<span class="sd">        </span>
+<span class="sd">        :returns: A :class:`learningstudio.core.Response` object with details of status and content.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">relativeUrl</span> <span class="o">=</span> <span class="n">PATH_COURSES_MSOFFICEDOCUMENTS_</span> <span class="o">%</span> <span class="p">(</span><span class="n">courseId</span><span class="p">,</span> <span class="n">msOfficeDocumentId</span><span class="p">,)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doGet</span><span class="p">(</span><span class="n">relativeUrl</span><span class="p">)</span>
+	</div>
+<div class="viewcode-block" id="ContentService.getMsOfficeDocumentContent"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.content.service.ContentService.getMsOfficeDocumentContent">[docs]</a>    <span class="k">def</span> <span class="nf">getMsOfficeDocumentContent</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">msOfficeDocumentId</span><span class="p">,</span> <span class="n">content_path</span> <span class="o">=</span> <span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get content for a specific MS Office Document in a course with</span>
+<span class="sd">        ``GET /courses/{courseId}/msOfficeDocuments/{msOfficeDocumentId}`` and </span>
+<span class="sd">        ``GET /courses/{courseId}/msOfficeDocuments/{msOfficeDocumentId}/content/{contentPath}``</span>
+<span class="sd">        using OAuth2 as a student, teacher or teaching assistant.</span>
+<span class="sd">        </span>
+<span class="sd">        :param courseId: ID of the course.</span>
+<span class="sd">        :type courseId: str</span>
+<span class="sd">        :param msOfficeDocumentId: ID of the ms office document.</span>
+<span class="sd">        :type msOfficeDocumentId: str</span>
+<span class="sd">        :key content_path: Path of the content.</span>
+<span class="sd">        :type content_path: str</span>
+<span class="sd">        </span>
+<span class="sd">        :returns: A :class:`learningstudio.core.Response` object with details of status and content.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">content_path</span> <span class="o">!=</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__getMsOfficeDocumentContent</span><span class="p">(</span><span class="n">courseId</span><span class="p">,</span> <span class="n">msOfficeDocumentId</span><span class="p">,</span> <span class="n">content_path</span><span class="p">)</span>
+            
+        <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">getMsOfficeDocument</span><span class="p">(</span><span class="n">courseId</span><span class="p">,</span> <span class="n">msOfficeDocumentId</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">response</span><span class="o">.</span><span class="n">isError</span><span class="p">():</span> <span class="k">return</span> <span class="n">response</span>
+        
+        <span class="n">json_data</span> <span class="o">=</span> <span class="n">json_loads</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">getContent</span><span class="p">())</span>
+        <span class="n">json_data</span> <span class="o">=</span> <span class="n">json_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;msOfficeDocuments&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">contentUrl</span> <span class="o">=</span> <span class="n">json_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;contentUrl&#39;</span><span class="p">)</span>
+        <span class="n">relativeUrl</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__getRelativePath</span><span class="p">(</span><span class="n">contentUrl</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doGet</span><span class="p">(</span><span class="n">relativeUrl</span><span class="p">)</span>
+        </div>
+    <span class="k">def</span> <span class="nf">__getMsOfficeDocumentContent</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">msOfficeDocumentId</span><span class="p">,</span> <span class="n">contentPath</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get content for a specific MS Office Document in a course with</span>
+<span class="sd">        ``GET /courses/{courseId}/msOfficeDocuments/{msOfficeDocumentId}`` and </span>
+<span class="sd">        ``GET /courses/{courseId}/msOfficeDocuments/{msOfficeDocumentId}/content/{contentPath}``</span>
+<span class="sd">        using OAuth2 as a student, teacher or teaching assistant.</span>
+<span class="sd">        </span>
+<span class="sd">        :param courseId: ID of the course.</span>
+<span class="sd">        :type courseId: str</span>
+<span class="sd">        :param msOfficeDocumentId: ID of the ms office document.</span>
+<span class="sd">        :type msOfficeDocumentId: str</span>
+<span class="sd">        :param contentPath: Path of the content.</span>
+<span class="sd">        :type contentPath: str</span>
+<span class="sd">        </span>
+<span class="sd">        :returns: A :class:`learningstudio.core.Response` object with details of status and content.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">relativeUrl</span> <span class="o">=</span> <span class="n">PATH_COURSES_MSOFFICEDOCUMENTS_CONTENT_</span> <span class="o">%</span> <span class="p">(</span><span class="n">courseId</span><span class="p">,</span> <span class="n">msOfficeDocumentId</span><span class="p">,</span> <span class="n">contentPath</span><span class="p">,)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doGet</span><span class="p">(</span><span class="n">relativeUrl</span><span class="p">)</span>
+
+<div class="viewcode-block" id="ContentService.getMsOfficeDocumentOriginal"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.content.service.ContentService.getMsOfficeDocumentOriginal">[docs]</a>    <span class="k">def</span> <span class="nf">getMsOfficeDocumentOriginal</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">msOfficeDocumentId</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get the original of a specific MS Office document in a course with</span>
+<span class="sd">        ``GET /courses/{courseId}/msOfficeDocuments/{msOfficeDocumentId}/originalDocument``</span>
+<span class="sd">        using OAuth2 as a student, teacher or teaching assistant.</span>
+<span class="sd">        </span>
+<span class="sd">        :param courseId: ID of the course.</span>
+<span class="sd">        :type courseId: str</span>
+<span class="sd">        :param msOfficeDocumentId: ID of the ms office document.</span>
+<span class="sd">        :type msOfficeDocumentId: str</span>
+<span class="sd">        </span>
+<span class="sd">        :returns: A :class:`learningstudio.core.Response` object with details of status and content.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">relativeUrl</span> <span class="o">=</span> <span class="n">PATH_COURSES_MSOFFICEDOCUMENTS_ORIGINALDOCUMENT</span> <span class="o">%</span> <span class="p">(</span><span class="n">courseId</span><span class="p">,</span> <span class="n">msOfficeDocumentId</span><span class="p">,)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doGet</span><span class="p">(</span><span class="n">relativeUrl</span><span class="p">)</span>
+	</div>
+<div class="viewcode-block" id="ContentService.getWebContentUploads"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.content.service.ContentService.getWebContentUploads">[docs]</a>    <span class="k">def</span> <span class="nf">getWebContentUploads</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">courseId</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get all web content uploads in a course with</span>
+<span class="sd">        ``GET /courses/{courseId}/webContentUploads``</span>
+<span class="sd">        using OAuth2 as a student, teacher or teaching assistant</span>
+<span class="sd">        </span>
+<span class="sd">        :param courseId: ID of the course.</span>
+<span class="sd">        :type courseId: str</span>
+<span class="sd">        </span>
+<span class="sd">        :returns: A :class:`learningstudio.core.Response` object with details of status and content.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">relativeUrl</span> <span class="o">=</span> <span class="n">PATH_COURSES_WEBCONTENTUPLOADS</span> <span class="o">%</span> <span class="p">(</span><span class="n">courseId</span><span class="p">,)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doGet</span><span class="p">(</span><span class="n">relativeUrl</span><span class="p">)</span>
+	</div>
+<div class="viewcode-block" id="ContentService.getWebContentUpload"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.content.service.ContentService.getWebContentUpload">[docs]</a>    <span class="k">def</span> <span class="nf">getWebContentUpload</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">webContentUploadId</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get a specific MS Office document in a course with</span>
+<span class="sd">        ``GET /courses/{courseId}/webContentUploads/{webContentUploadId}``</span>
+<span class="sd">        using OAuth2 as a student, teacher or teaching assistant.</span>
+<span class="sd">        </span>
+<span class="sd">        :param courseId: ID of the course.</span>
+<span class="sd">        :type courseId: str</span>
+<span class="sd">        :param webContentUploadId: ID of the ms office document.</span>
+<span class="sd">        :type webContentUploadId: str</span>
+<span class="sd">        </span>
+<span class="sd">        :returns: A :class:`learningstudio.core.Response` object with details of status and content.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">relativeUrl</span> <span class="o">=</span> <span class="n">PATH_COURSES_WEBCONTENTUPLOADS_</span> <span class="o">%</span> <span class="p">(</span><span class="n">courseId</span><span class="p">,</span> <span class="n">webContentUploadId</span><span class="p">,)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doGet</span><span class="p">(</span><span class="n">relativeUrl</span><span class="p">)</span>
+	</div>
+<div class="viewcode-block" id="ContentService.getWebContentUploadOriginal"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.content.service.ContentService.getWebContentUploadOriginal">[docs]</a>    <span class="k">def</span> <span class="nf">getWebContentUploadOriginal</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">webContentUploadId</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get a specific MS Office document in a course with</span>
+<span class="sd">        ``GET /courses/{courseId}/webContentUploads/{webContentUploadId}``</span>
+<span class="sd">        using OAuth2 as a student, teacher or teaching assistant.</span>
+<span class="sd">        </span>
+<span class="sd">        :param courseId: ID of the course.</span>
+<span class="sd">        :type courseId: str</span>
+<span class="sd">        :param webContentUploadId: ID of the ms office document.</span>
+<span class="sd">        :type webContentUploadId: str</span>
+<span class="sd">        </span>
+<span class="sd">        :returns: A :class:`learningstudio.core.Response` object with details of status and content.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">relativeUrl</span> <span class="o">=</span> <span class="n">PATH_COURSES_WEBCONTENTUPLOADS_ORIGINALDOCUMENT</span> <span class="o">%</span> <span class="p">(</span><span class="n">courseId</span><span class="p">,</span> <span class="n">webContentUploadId</span><span class="p">,)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doGet</span><span class="p">(</span><span class="n">relativeUrl</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="ContentService.getWebContentUploadContent"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.content.service.ContentService.getWebContentUploadContent">[docs]</a>    <span class="k">def</span> <span class="nf">getWebContentUploadContent</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">webContentUploadId</span><span class="p">,</span> <span class="n">content_path</span> <span class="o">=</span> <span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get content for a specific Web Content Upload in a course with</span>
+<span class="sd">        ``GET /courses/{courseId}/webContentUpload/{webContentUploadId}`` and</span>
+<span class="sd">        ``GET /courses/{courseId}/webContentUpload/{webContentUploadId}/content/{contentPath}``</span>
+<span class="sd">        using OAuth2 as a student, teacher or teaching assistant.</span>
+<span class="sd">        </span>
+<span class="sd">        :param courseId: ID of the course.</span>
+<span class="sd">        :type courseId: str</span>
+<span class="sd">        :param webContentUploadId: ID of the web content upload.</span>
+<span class="sd">        :type webContentUploadId: str</span>
+<span class="sd">        :key content_path: Path of the content.</span>
+<span class="sd">        :type content_path: str</span>
+<span class="sd">        </span>
+<span class="sd">        :returns: A :class:`learningstudio.core.Response` object with details of status and content.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">content_path</span> <span class="o">!=</span> <span class="bp">None</span><span class="p">:</span> <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__getWebContentUploadContent</span><span class="p">(</span><span class="n">courseId</span><span class="p">,</span> <span class="n">webContentUploadId</span><span class="p">,</span> <span class="n">content_path</span><span class="p">)</span>
+
+        <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">getWebContentUpload</span><span class="p">(</span><span class="n">courseId</span><span class="p">,</span> <span class="n">webContentUploadId</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">response</span><span class="o">.</span><span class="n">isError</span><span class="p">():</span> <span class="k">return</span> <span class="n">response</span>
+		
+        <span class="n">json_data</span> <span class="o">=</span> <span class="n">json_loads</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">getContent</span><span class="p">())</span>
+        <span class="n">json_data</span> <span class="o">=</span> <span class="n">json_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;webContentUploads&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">contentUrl</span> <span class="o">=</span> <span class="n">json_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;contentUrl&#39;</span><span class="p">)</span>
+        <span class="n">relativeUrl</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__getRelativePath</span><span class="p">(</span><span class="n">contentUrl</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doGet</span><span class="p">(</span><span class="n">relativeUrl</span><span class="p">)</span>
+	</div>
+    <span class="k">def</span> <span class="nf">__getWebContentUploadContent</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">webContentUploadId</span><span class="p">,</span> <span class="n">contentPath</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get content for a specific Web Content Upload in a course with</span>
+<span class="sd">        ``GET /courses/{courseId}/webContentUpload/{webContentUploadId}`` and</span>
+<span class="sd">        ``GET /courses/{courseId}/webContentUpload/{webContentUploadId}/content/{contentPath}``</span>
+<span class="sd">        using OAuth2 as a student, teacher or teaching assistant.</span>
+<span class="sd">        </span>
+<span class="sd">        :param courseId: ID of the course.</span>
+<span class="sd">        :type courseId: str</span>
+<span class="sd">        :param webContentUploadId: ID of the web content upload.</span>
+<span class="sd">        :type webContentUploadId: str</span>
+<span class="sd">        :param contentPath: Path of the content.</span>
+<span class="sd">        :type contentPath: str</span>
+<span class="sd">        </span>
+<span class="sd">        :returns: A :class:`learningstudio.core.Response` object with details of status and content.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">relativeUrl</span> <span class="o">=</span> <span class="n">PATH_COURSES_WEBCONTENTUPLOADS_CONTENT_</span> <span class="o">%</span> <span class="p">(</span><span class="n">courseId</span><span class="p">,</span> <span class="n">webContentUploadId</span><span class="p">,</span> <span class="n">contentPath</span><span class="p">,)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doGet</span><span class="p">(</span><span class="n">relativeUrl</span><span class="p">)</span>
+        
+<div class="viewcode-block" id="ContentService.getThreadedDiscussionResponseHierarchy"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.content.service.ContentService.getThreadedDiscussionResponseHierarchy">[docs]</a>    <span class="k">def</span> <span class="nf">getThreadedDiscussionResponseHierarchy</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">threadId</span><span class="p">,</span> <span class="n">topicId</span><span class="p">,</span> <span class="n">responseId</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get hierarchy of a discussion thread response with</span>
+<span class="sd">        ``GET /courses/{courseId}/threadeddiscussions/{threadId}/topics/{topicId}/responses/{responseId}/responseHierarchy``</span>
+<span class="sd">        using OAuth2 as a student, teacher, teaching assistant or admin.</span>
+<span class="sd">        </span>
+<span class="sd">        :param courseId: ID of the course.</span>
+<span class="sd">        :type courseId: str</span>
+<span class="sd">        :param threadId: ID of the thread.</span>
+<span class="sd">        :type threadId: str</span>
+<span class="sd">        :param topicId: ID of the topic.</span>
+<span class="sd">        :type topicId: str</span>
+<span class="sd">        :param responseId: ID of the response.</span>
+<span class="sd">        :type responseId: str</span>
+<span class="sd">        </span>
+<span class="sd">        :returns: A :class:`learningstudio.core.Response` object with details of status and content.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">relativeUrl</span> <span class="o">=</span> <span class="n">PATH_COURSES_THREADEDDISCUSSIONS_TOPICS_RESPONSES_RESPONSEHIEARCHY</span> <span class="o">%</span> <span class="p">(</span><span class="n">courseId</span><span class="p">,</span> <span class="n">threadId</span><span class="p">,</span> <span class="n">topicId</span><span class="p">,</span> <span class="n">responseId</span><span class="p">,)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doGet</span><span class="p">(</span><span class="n">relativeUrl</span><span class="p">)</span>
+        </div>
+<div class="viewcode-block" id="ContentService.getThreadedDiscussionUserViewResponses"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.content.service.ContentService.getThreadedDiscussionUserViewResponses">[docs]</a>    <span class="k">def</span> <span class="nf">getThreadedDiscussionUserViewResponses</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">userId</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">threadId</span><span class="p">,</span> 
+                                               <span class="n">topicId</span><span class="p">,</span> <span class="n">responseId</span><span class="p">,</span> <span class="n">depth</span> <span class="o">=</span> <span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get all user&#39;s view statuses of a discussion thread response with</span>
+<span class="sd">        ``GET /courses/{courseId}/threadeddiscussions/{threadId}/topics/{topicId}/userviewresponses/{responseId}/userviewresponses``</span>
+<span class="sd">        using OAuth2 as a student.</span>
+<span class="sd">        </span>
+<span class="sd">        :param courseId: ID of the course.</span>
+<span class="sd">        :type courseId: str</span>
+<span class="sd">        :param threadId: ID of the thread.</span>
+<span class="sd">        :type threadId: str</span>
+<span class="sd">        :param topicId: ID of the topic.</span>
+<span class="sd">        :type topicId: str</span>
+<span class="sd">        :param responseId: ID of the response.</span>
+<span class="sd">        :type responseId: str</span>
+<span class="sd">        :key depth: Number of levels to traverse.</span>
+<span class="sd">        :type depth: int</span>
+<span class="sd">        </span>
+<span class="sd">        :returns: A :class:`learningstudio.core.Response` object with details of status and content.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">depth</span> <span class="o">!=</span> <span class="bp">None</span><span class="p">:</span> <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__getThreadedDiscussionUserViewResponses</span><span class="p">(</span><span class="n">userId</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">threadId</span><span class="p">,</span>
+                                                                               <span class="n">topicId</span><span class="p">,</span> <span class="n">responseId</span><span class="p">,</span> <span class="n">depth</span><span class="p">)</span>
+        
+        <span class="n">relativeUrl</span> <span class="o">=</span> <span class="n">PATH_USERS_COURSES_THREADEDDISCUSSIONS_TOPICS_USERVIEWRESPONSES_USERVIEWRESPONSES</span> <span class="o">%</span> <span class="p">(</span><span class="n">userId</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> 
+                                                                                                           <span class="n">threadId</span><span class="p">,</span> <span class="n">topicId</span><span class="p">,</span> 
+                                                                                                           <span class="n">responseId</span><span class="p">,)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doGet</span><span class="p">(</span><span class="n">relativeUrl</span><span class="p">)</span>
+        </div>
+    <span class="k">def</span> <span class="nf">__getThreadedDiscussionUserViewResponses</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">userId</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">threadId</span><span class="p">,</span> <span class="n">topicId</span><span class="p">,</span> 
+                                                 <span class="n">responseId</span><span class="p">,</span> <span class="n">depth</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get all user&#39;s view statuses of a discussion thread response with</span>
+<span class="sd">        ``GET /courses/{courseId}/threadeddiscussions/{threadId}/topics/{topicId}/userviewresponses/{responseId}/userviewresponses?depth={depth}``</span>
+<span class="sd">        using OAuth2 as a student.</span>
+<span class="sd">        </span>
+<span class="sd">        :param courseId: ID of the course.</span>
+<span class="sd">        :type courseId: str</span>
+<span class="sd">        :param threadId: ID of the thread.</span>
+<span class="sd">        :type threadId: str</span>
+<span class="sd">        :param topicId: ID of the topic.</span>
+<span class="sd">        :type topicId: str</span>
+<span class="sd">        :param responseId: ID of the response.</span>
+<span class="sd">        :type responseId: str</span>
+<span class="sd">        :param depth: Number of levels to traverse.</span>
+<span class="sd">        :type depth: int</span>
+<span class="sd">        </span>
+<span class="sd">        :returns: A :class:`learningstudio.core.Response` object with details of status and content.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">relativeUrl</span> <span class="o">=</span> <span class="n">PATH_USERS_COURSES_THREADEDDISCUSSIONS_TOPICS_USERVIEWRESPONSES_USERVIEWRESPONSES__DEPTH</span> <span class="o">%</span> <span class="p">(</span><span class="n">userId</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> 
+                                                                                                                  <span class="n">threadId</span><span class="p">,</span> <span class="n">topicId</span><span class="p">,</span> 
+                                                                                                                  <span class="n">responseId</span><span class="p">,</span> <span class="n">depth</span><span class="p">,)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doGet</span><span class="p">(</span><span class="n">relativeUrl</span><span class="p">)</span>
+
+<div class="viewcode-block" id="ContentService.getThreadedDiscussionTopicUserViewResponses"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.content.service.ContentService.getThreadedDiscussionTopicUserViewResponses">[docs]</a>    <span class="k">def</span> <span class="nf">getThreadedDiscussionTopicUserViewResponses</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">userId</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">threadId</span><span class="p">,</span> <span class="n">topicId</span><span class="p">,</span> <span class="n">depth</span> <span class="o">=</span> <span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get all user&#39;s view statuses of a discussion thread topic with</span>
+<span class="sd">        ``GET /courses/{courseId}/threadeddiscussions/{threadId}/topics/{topicId}/userviewresponses``</span>
+<span class="sd">        using OAuth2 as a student.</span>
+<span class="sd">        </span>
+<span class="sd">        :param courseId: ID of the course.</span>
+<span class="sd">        :type courseId: str</span>
+<span class="sd">        :param threadId: ID of the thread.</span>
+<span class="sd">        :type threadId: str</span>
+<span class="sd">        :param topicId: ID of the topic.</span>
+<span class="sd">        :type topicId: str</span>
+<span class="sd">        :key depth: Number of levels to traverse.</span>
+<span class="sd">        :type depth: int</span>
+<span class="sd">        </span>
+<span class="sd">        :returns: A :class:`learningstudio.core.Response` object with details of status and content.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">depth</span> <span class="o">!=</span> <span class="bp">None</span><span class="p">:</span> <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__getThreadedDiscussionTopicUserViewResponses</span><span class="p">(</span><span class="n">userId</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">threadId</span><span class="p">,</span> <span class="n">topicId</span><span class="p">,</span> <span class="n">depth</span><span class="p">)</span>
+
+        <span class="n">relativeUrl</span> <span class="o">=</span> <span class="n">PATH_USERS_COURSES_THREADEDDISCUSSIONS_TOPICS_USERVIEWRESPONSES</span> <span class="o">%</span> <span class="p">(</span><span class="n">userId</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">threadId</span><span class="p">,</span> <span class="n">topicId</span><span class="p">,)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doGet</span><span class="p">(</span><span class="n">relativeUrl</span><span class="p">)</span>
+	</div>
+    <span class="k">def</span> <span class="nf">__getThreadedDiscussionTopicUserViewResponses</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">userId</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">threadId</span><span class="p">,</span> <span class="n">topicId</span><span class="p">,</span> <span class="n">depth</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get all user&#39;s view statuses of a discussion thread topic with</span>
+<span class="sd">        ``GET /courses/{courseId}/threadeddiscussions/{threadId}/topics/{topicId}/userviewresponses?depth={depth}``</span>
+<span class="sd">        using OAuth2 as a student.</span>
+<span class="sd">        </span>
+<span class="sd">        :param courseId: ID of the course.</span>
+<span class="sd">        :type courseId: str</span>
+<span class="sd">        :param threadId: ID of the thread.</span>
+<span class="sd">        :type threadId: str</span>
+<span class="sd">        :param topicId: ID of the topic.</span>
+<span class="sd">        :type topicId: str</span>
+<span class="sd">        :param depth: Number of levels to traverse</span>
+<span class="sd">        :type depth: int</span>
+<span class="sd">        </span>
+<span class="sd">        :returns: A :class:`learningstudio.core.Response` object with details of status and content.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">relativeUrl</span> <span class="o">=</span> <span class="n">PATH_USERS_COURSES_THREADEDDISCUSSIONS_TOPICS_USERVIEWRESPONSES__DEPTH</span> <span class="o">%</span> <span class="p">(</span><span class="n">userId</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">threadId</span><span class="p">,</span> <span class="n">topicId</span><span class="p">,</span> <span class="n">depth</span><span class="p">,)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doGet</span><span class="p">(</span><span class="n">relativeUrl</span><span class="p">)</span>
+	
+<div class="viewcode-block" id="ContentService.getThreadedDiscussionTopicHierarchy"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.content.service.ContentService.getThreadedDiscussionTopicHierarchy">[docs]</a>    <span class="k">def</span> <span class="nf">getThreadedDiscussionTopicHierarchy</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">threadId</span><span class="p">,</span> <span class="n">topicId</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get hierarchy of a discussion thread topic with</span>
+<span class="sd">        ``GET /courses/{courseId}/threadeddiscussions/{threadId}/topics/{topicId}/responseHierarchy``</span>
+<span class="sd">        using OAuth2 as a student, teacher, teaching assistant or admin.</span>
+<span class="sd">        </span>
+<span class="sd">        :param courseId: ID of the course.</span>
+<span class="sd">        :type courseId: str</span>
+<span class="sd">        :param threadId: ID of the thread.</span>
+<span class="sd">        :type threadId: str</span>
+<span class="sd">        :param topicId: ID of the topic.</span>
+<span class="sd">        :type topicId: str</span>
+<span class="sd">        :param responseId: ID of the response.</span>
+<span class="sd">        :type responseId: str</span>
+<span class="sd">        </span>
+<span class="sd">        :returns: A :class:`learningstudio.core.Response` object with details of status and content.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">relativeUrl</span> <span class="o">=</span> <span class="n">PATH_COURSES_THREADEDDISCUSSIONS_TOPICS_RESPONSEHIEARCHY</span> <span class="o">%</span> <span class="p">(</span><span class="n">courseId</span><span class="p">,</span> <span class="n">threadId</span><span class="p">,</span> <span class="n">topicId</span><span class="p">,)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doGet</span><span class="p">(</span><span class="n">relativeUrl</span><span class="p">)</span>
+    </div>
+<div class="viewcode-block" id="ContentService.getThreadedDiscussionResponseCount"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.content.service.ContentService.getThreadedDiscussionResponseCount">[docs]</a>    <span class="k">def</span> <span class="nf">getThreadedDiscussionResponseCount</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">userId</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">threadId</span><span class="p">,</span> <span class="n">topicId</span><span class="p">,</span> <span class="n">responseId</span><span class="p">,</span> <span class="n">depth</span> <span class="o">=</span> <span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get count of responses for a specific response with</span>
+<span class="sd">        ``GET /courses/{courseId}/threadeddiscussions/{threadId}/topics/{topicId}/responses/{responseId}/responseCounts``</span>
+<span class="sd">        using OAuth1 or OAuth2 as a student.</span>
+<span class="sd">        </span>
+<span class="sd">        :param courseId: ID of the course.</span>
+<span class="sd">        :type courseId: str</span>
+<span class="sd">        :param threadId: ID of the thread.</span>
+<span class="sd">        :type threadId: str</span>
+<span class="sd">        :param topicId: ID of the topic.</span>
+<span class="sd">        :type topicId: str</span>
+<span class="sd">        :param responseId: ID of the response.</span>
+<span class="sd">        :type responseId: str</span>
+<span class="sd">        :key depth: Number of levels to traverse.</span>
+<span class="sd">        :type depth: int</span>
+<span class="sd">        </span>
+<span class="sd">        :returns: A :class:`learningstudio.core.Response` object with details of status and content.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">depth</span> <span class="o">!=</span> <span class="bp">None</span><span class="p">:</span> <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__getThreadedDiscussionResponseCount</span><span class="p">(</span><span class="n">userId</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">threadId</span><span class="p">,</span>
+                                                                           <span class="n">topicId</span><span class="p">,</span> <span class="n">responseId</span><span class="p">,</span> <span class="n">depth</span><span class="p">)</span>
+
+        <span class="n">relativeUrl</span> <span class="o">=</span> <span class="n">PATH_USERS_COURSES_THREADEDDISCUSSIONS_TOPICS_RESPONSES_RESPONSECOUNTS</span> <span class="o">%</span> <span class="p">(</span><span class="n">userId</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> 
+                                                                                                <span class="n">threadId</span><span class="p">,</span> <span class="n">topicId</span><span class="p">,</span> 
+                                                                                                <span class="n">responseId</span><span class="p">,)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doGet</span><span class="p">(</span><span class="n">relativeUrl</span><span class="p">)</span>
+	</div>
+    <span class="k">def</span> <span class="nf">__getThreadedDiscussionResponseCount</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">userId</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">threadId</span><span class="p">,</span> <span class="n">topicId</span><span class="p">,</span> <span class="n">responseId</span><span class="p">,</span> <span class="n">depth</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get count of responses for a specific response with</span>
+<span class="sd">        ``GET /courses/{courseId}/threadeddiscussions/{threadId}/topics/{topicId}/responses/{responseId}/responseCounts?depth={depth}``</span>
+<span class="sd">        using OAuth1 or OAuth2 as a student.</span>
+<span class="sd">        </span>
+<span class="sd">        :param courseId: ID of the course.</span>
+<span class="sd">        :type courseId: str</span>
+<span class="sd">        :param threadId: ID of the thread.</span>
+<span class="sd">        :type threadId: str</span>
+<span class="sd">        :param topicId: ID of the topic.</span>
+<span class="sd">        :type topicId: str</span>
+<span class="sd">        :param responseId: ID of the response.</span>
+<span class="sd">        :type responseId: str</span>
+<span class="sd">        :param depth: Number of levels to traverse.</span>
+<span class="sd">        :type depth: int</span>
+<span class="sd">        </span>
+<span class="sd">        :returns: A :class:`learningstudio.core.Response` object with details of status and content.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">relativeUrl</span> <span class="o">=</span> <span class="n">PATH_USERS_COURSES_THREADEDDISCUSSIONS_TOPICS_RESPONSES_RESPONSECOUNTS__DEPTH</span> <span class="o">%</span> <span class="p">(</span><span class="n">userId</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> 
+                                                                                                       <span class="n">threadId</span><span class="p">,</span> <span class="n">topicId</span><span class="p">,</span> 
+                                                                                                       <span class="n">responseId</span><span class="p">,</span> <span class="n">depth</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doGet</span><span class="p">(</span><span class="n">relativeUrl</span><span class="p">)</span>
+	
+<div class="viewcode-block" id="ContentService.getThreadedDiscussionTopicResponseCount"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.content.service.ContentService.getThreadedDiscussionTopicResponseCount">[docs]</a>    <span class="k">def</span> <span class="nf">getThreadedDiscussionTopicResponseCount</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">userId</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">threadId</span><span class="p">,</span> <span class="n">topicId</span><span class="p">,</span> <span class="n">depth</span> <span class="o">=</span> <span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get count of responses for a specific topic with</span>
+<span class="sd">        ``GET /courses/{courseId}/threadeddiscussions/{threadId}/topics/{topicId}/responseCounts``</span>
+<span class="sd">        using OAuth1 or OAuth2 as a student.</span>
+<span class="sd">        </span>
+<span class="sd">        :param courseId: ID of the course.</span>
+<span class="sd">        :type courseId: str</span>
+<span class="sd">        :param threadId: ID of the thread.</span>
+<span class="sd">        :type threadId: str</span>
+<span class="sd">        :param topicId: ID of the topic.</span>
+<span class="sd">        :type topicId: str</span>
+<span class="sd">        :key depth: Number of levels to traverse.</span>
+<span class="sd">        :type depth: int</span>
+<span class="sd">        </span>
+<span class="sd">        :returns: A :class:`learningstudio.core.Response` object with details of status and content.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">depth</span> <span class="o">!=</span> <span class="bp">None</span><span class="p">:</span> <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__getThreadedDiscussionTopicResponseCount</span><span class="p">(</span><span class="n">userId</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">threadId</span><span class="p">,</span> <span class="n">topicId</span><span class="p">,</span> <span class="n">depth</span><span class="p">)</span>
+        
+        <span class="n">relativeUrl</span> <span class="o">=</span> <span class="n">PATH_USERS_COURSES_THREADEDDISCUSSIONS_TOPICS_RESPONSECOUNTS</span> <span class="o">%</span> <span class="p">(</span><span class="n">userId</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">threadId</span><span class="p">,</span> <span class="n">topicId</span><span class="p">,)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doGet</span><span class="p">(</span><span class="n">relativeUrl</span><span class="p">)</span>
+	</div>
+    <span class="k">def</span> <span class="nf">__getThreadedDiscussionTopicResponseCount</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">userId</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">threadId</span><span class="p">,</span> <span class="n">topicId</span><span class="p">,</span> <span class="n">depth</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get count of responses for a specific topic with</span>
+<span class="sd">        ``GET /courses/{courseId}/threadeddiscussions/{threadId}/topics/{topicId}/responseCounts?depth={depth}``</span>
+<span class="sd">        using OAuth1 or OAuth2 as a student.</span>
+<span class="sd">        </span>
+<span class="sd">        :param courseId: ID of the course.</span>
+<span class="sd">        :type courseId: str</span>
+<span class="sd">        :param threadId: ID of the thread.</span>
+<span class="sd">        :type threadId: str</span>
+<span class="sd">        :param topicId: ID of the topic.</span>
+<span class="sd">        :type topicId: str</span>
+<span class="sd">        :param depth: Number of levels to traverse.</span>
+<span class="sd">        :type depth: int</span>
+<span class="sd">        </span>
+<span class="sd">        :returns: A :class:`learningstudio.core.Response` object with details of status and content.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">relativeUrl</span> <span class="o">=</span> <span class="n">PATH_USERS_COURSES_THREADEDDISCUSSIONS_TOPICS_RESPONSECOUNTS__DEPTH</span> <span class="o">%</span> <span class="p">(</span><span class="n">userId</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">threadId</span><span class="p">,</span> <span class="n">topicId</span><span class="p">,</span> <span class="n">depth</span><span class="p">,)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doGet</span><span class="p">(</span><span class="n">relativeUrl</span><span class="p">)</span>
+	
+<div class="viewcode-block" id="ContentService.getThreadedDiscussionResponseBranch"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.content.service.ContentService.getThreadedDiscussionResponseBranch">[docs]</a>    <span class="k">def</span> <span class="nf">getThreadedDiscussionResponseBranch</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">threadId</span><span class="p">,</span> <span class="n">topicId</span><span class="p">,</span> <span class="n">responseId</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get branch hierarchy to a discussion thread response with</span>
+<span class="sd">        ``GET /courses/{courseId}/threadeddiscussions/{threadId}/topics/{topicId}/responses/{responseId}/responseBranch``</span>
+<span class="sd">        using OAuth1 or OAuth2 as a student, teacher, teaching assistant or admin.</span>
+<span class="sd">        </span>
+<span class="sd">        :param courseId: ID of the course.</span>
+<span class="sd">        :type courseId: str</span>
+<span class="sd">        :param threadId: ID of the thread.</span>
+<span class="sd">        :type threadId: str</span>
+<span class="sd">        :param topicId: ID of the topic.</span>
+<span class="sd">        :type topicId: str</span>
+<span class="sd">        :param responseId: ID of the response	</span>
+<span class="sd">        :type responseId: str</span>
+<span class="sd">        </span>
+<span class="sd">        :returns: A :class:`learningstudio.core.Response` object with details of status and content.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">relativeUrl</span> <span class="o">=</span> <span class="n">PATH_COURSES_THREADEDDISCUSSIONS_TOPICS_RESPONSES_RESPONSEBRANCH</span> <span class="o">%</span> <span class="p">(</span><span class="n">courseId</span><span class="p">,</span> <span class="n">threadId</span><span class="p">,</span> <span class="n">topicId</span><span class="p">,</span> <span class="n">responseId</span><span class="p">,)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doGet</span><span class="p">(</span><span class="n">relativeUrl</span><span class="p">)</span>
+    </div>
+<div class="viewcode-block" id="ContentService.getThreadedDiscussionResponseAuthor"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.content.service.ContentService.getThreadedDiscussionResponseAuthor">[docs]</a>    <span class="k">def</span> <span class="nf">getThreadedDiscussionResponseAuthor</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">threadId</span><span class="p">,</span> <span class="n">topicId</span><span class="p">,</span> <span class="n">responseId</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get author of a discussion thread response with</span>
+<span class="sd">        ``GET /courses/{courseId}/threadeddiscussions/{threadId}/topics/{topicId}/responses/{responseId}/responseAuthor``</span>
+<span class="sd">        using OAuth1 or OAuth2 as a student, teacher, teaching assistant or admin.</span>
+<span class="sd">        </span>
+<span class="sd">        :param courseId: ID of the course.</span>
+<span class="sd">        :type courseId: str</span>
+<span class="sd">        :param threadId: ID of the thread.</span>
+<span class="sd">        :type threadId: str</span>
+<span class="sd">        :param topicId: ID of the topic</span>
+<span class="sd">        :type topicId: str</span>
+<span class="sd">        :param responseId: ID of the response.</span>
+<span class="sd">        :type responseId: str</span>
+<span class="sd">        </span>
+<span class="sd">        :returns: A :class:`learningstudio.core.Response` object with details of status and content.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">relativeUrl</span> <span class="o">=</span> <span class="n">PATH_COURSES_THREADEDDISCUSSIONS_TOPICS_RESPONSES_RESPONSEAUTHOR</span> <span class="o">%</span> <span class="p">(</span><span class="n">courseId</span><span class="p">,</span> <span class="n">threadId</span><span class="p">,</span> <span class="n">topicId</span><span class="p">,</span> <span class="n">responseId</span><span class="p">,)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doGet</span><span class="p">(</span><span class="n">relativeUrl</span><span class="p">)</span>
+    </div>
+<div class="viewcode-block" id="ContentService.getThreadedDiscussionResponseAndAuthorComposite"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.content.service.ContentService.getThreadedDiscussionResponseAndAuthorComposite">[docs]</a>    <span class="k">def</span> <span class="nf">getThreadedDiscussionResponseAndAuthorComposite</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">threadId</span><span class="p">,</span> <span class="n">topicId</span><span class="p">,</span> <span class="n">responseId</span><span class="p">,</span> <span class="n">depth</span> <span class="o">=</span> <span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get response and author composite of a discussion thread response with</span>
+<span class="sd">        ``GET /courses/{courseId}/threadeddiscussions/{threadId}/topics/{topicId}/responses/{responseId}/responseAndAuthorComps``</span>
+<span class="sd">        using OAuth1 or OAuth2 as a student, teacher, teaching assistant or admin.</span>
+<span class="sd">        </span>
+<span class="sd">        :param courseId: ID of the course.</span>
+<span class="sd">        :type courseId: str</span>
+<span class="sd">        :param threadId: ID of the thread.</span>
+<span class="sd">        :type threadId: str</span>
+<span class="sd">        :param topicId: ID of the topic.</span>
+<span class="sd">        :type topicId: str</span>
+<span class="sd">        :param responseId: ID of the response.</span>
+<span class="sd">        :type responseId: str</span>
+<span class="sd">        :key depth: Number of levels to traverse.</span>
+<span class="sd">        :type depth: int</span>
+<span class="sd">        </span>
+<span class="sd">        :returns: A :class:`learningstudio.core.Response` object with details of status and content.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">depth</span> <span class="o">!=</span> <span class="bp">None</span><span class="p">:</span> <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__getThreadedDiscussionResponseAndAuthorComposite</span><span class="p">(</span><span class="n">courseId</span><span class="p">,</span> <span class="n">threadId</span><span class="p">,</span> <span class="n">topicId</span><span class="p">,</span> <span class="n">responseId</span><span class="p">,</span> <span class="n">depth</span><span class="p">)</span>
+        
+        <span class="n">relativeUrl</span> <span class="o">=</span> <span class="n">PATH_COURSES_THREADEDDISCUSSIONS_TOPICS_RESPONSES_RESPONSEANDAUTHORCOMPS</span> <span class="o">%</span> <span class="p">(</span><span class="n">courseId</span><span class="p">,</span> <span class="n">threadId</span><span class="p">,</span> <span class="n">topicId</span><span class="p">,</span> <span class="n">responseId</span><span class="p">,)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doGet</span><span class="p">(</span><span class="n">relativeUrl</span><span class="p">)</span>
+    </div>
+    <span class="k">def</span> <span class="nf">__getThreadedDiscussionResponseAndAuthorComposite</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">threadId</span><span class="p">,</span> <span class="n">topicId</span><span class="p">,</span> <span class="n">responseId</span><span class="p">,</span> <span class="n">depth</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get response and author composite for a discussion thread response at a specified depth with</span>
+<span class="sd">        ``GET /courses/{courseId}/threadeddiscussions/{threadId}/topics/{topicId}/responses/{responseId}/responseAndAuthorComps?depth={depth}``</span>
+<span class="sd">        using OAuth1 or OAuth2 as a student, teacher, teaching assistant or admin.</span>
+<span class="sd">        </span>
+<span class="sd">        :param courseId: ID of the course.</span>
+<span class="sd">        :type courseId: str</span>
+<span class="sd">        :param threadId: ID of the thread.</span>
+<span class="sd">        :type threadId: str</span>
+<span class="sd">        :param topicId: ID of the topic.</span>
+<span class="sd">        :type topicId: str</span>
+<span class="sd">        :param responseId: ID of the response.</span>
+<span class="sd">        :type responseId: str</span>
+<span class="sd">        :param depth: Max depth to traverse.</span>
+<span class="sd">        :type depth: int</span>
+<span class="sd">        </span>
+<span class="sd">        :returns: A :class:`learningstudio.core.Response` object with details of status and content.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">relativeUrl</span> <span class="o">=</span> <span class="n">PATH_COURSES_THREADEDDISCUSSIONS_TOPICS_RESPONSES_RESPONSEANDAUTHORCOMPS__DEPTH</span> <span class="o">%</span> <span class="p">(</span><span class="n">courseId</span><span class="p">,</span> <span class="n">threadId</span><span class="p">,</span> 
+                                                                                                         <span class="n">topicId</span><span class="p">,</span> <span class="n">responseId</span><span class="p">,</span> <span class="n">depth</span><span class="p">,)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doGet</span><span class="p">(</span><span class="n">relativeUrl</span><span class="p">)</span>
+    
+<div class="viewcode-block" id="ContentService.getThreadedDiscussionTopicResponseAndAuthorComposite"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.content.service.ContentService.getThreadedDiscussionTopicResponseAndAuthorComposite">[docs]</a>    <span class="k">def</span> <span class="nf">getThreadedDiscussionTopicResponseAndAuthorComposite</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">threadId</span><span class="p">,</span> <span class="n">topicId</span><span class="p">,</span> <span class="n">depth</span> <span class="o">=</span> <span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get response and author composite for a discussion thread topic with</span>
+<span class="sd">        ``GET /courses/{courseId}/threadeddiscussions/{threadId}/topics/{topicId}/responseAndAuthorComps/{responseId}/responseAndAuthorComps``</span>
+<span class="sd">        using OAuth1 or OAuth2 as a student, teacher, teaching assistant or admin.</span>
+<span class="sd">        </span>
+<span class="sd">        :param courseId: ID of the course.</span>
+<span class="sd">        :type courseId: str</span>
+<span class="sd">        :param threadId: ID of the thread.</span>
+<span class="sd">        :type threadId: str</span>
+<span class="sd">        :param topicId: ID of the topic.</span>
+<span class="sd">        :type topicId: str</span>
+<span class="sd">        :key depth: Number of levels to traverse.</span>
+<span class="sd">        :type depth: int</span>
+<span class="sd">        </span>
+<span class="sd">        :returns: A :class:`learningstudio.core.Response` object with details of status and content.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">depth</span> <span class="o">!=</span> <span class="bp">None</span><span class="p">:</span> <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__getThreadedDiscussionTopicResponseAndAuthorComposite</span><span class="p">(</span><span class="n">courseId</span><span class="p">,</span> <span class="n">threadId</span><span class="p">,</span> <span class="n">topicId</span><span class="p">,</span> <span class="n">depth</span><span class="p">)</span>
+        
+        <span class="n">relativeUrl</span> <span class="o">=</span> <span class="n">PATH_COURSES_THREADEDDISCUSSIONS_TOPICS_RESPONSEANDAUTHORCOMPS</span> <span class="o">%</span> <span class="p">(</span><span class="n">courseId</span><span class="p">,</span> <span class="n">threadId</span><span class="p">,</span> <span class="n">topicId</span><span class="p">,)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doGet</span><span class="p">(</span><span class="n">relativeUrl</span><span class="p">)</span>
+	</div>
+    <span class="k">def</span> <span class="nf">__getThreadedDiscussionTopicResponseAndAuthorComposite</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">threadId</span><span class="p">,</span> <span class="n">topicId</span><span class="p">,</span> <span class="n">depth</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get response and author composite of a discussion thread topic at a specified depth with</span>
+<span class="sd">        ``GET /courses/{courseId}/threadeddiscussions/{threadId}/topics/{topicId}/responseAndAuthorComps/{responseId}/responseAndAuthorComps?depth={depth}``</span>
+<span class="sd">        using OAuth1 or OAuth2 as a student, teacher, teaching assistant or admin.</span>
+<span class="sd">        </span>
+<span class="sd">        :param courseId: ID of the course.</span>
+<span class="sd">        :type courseId: str</span>
+<span class="sd">        :param threadId: ID of the thread.</span>
+<span class="sd">        :type threadId: str</span>
+<span class="sd">        :param topicId: ID of the topic.</span>
+<span class="sd">        :type topicId: str</span>
+<span class="sd">        :param depth: Max depth to traverse</span>
+<span class="sd">        :type depth: int</span>
+<span class="sd">        </span>
+<span class="sd">        :returns: A :class:`learningstudio.core.Response` object with details of status and content.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">relativeUrl</span> <span class="o">=</span> <span class="n">PATH_COURSES_THREADEDDISCUSSIONS_TOPICS_RESPONSEANDAUTHORCOMPS__DEPTH</span> <span class="o">%</span> <span class="p">(</span><span class="n">courseId</span><span class="p">,</span> <span class="n">threadId</span><span class="p">,</span> <span class="n">topicId</span><span class="p">,</span> <span class="n">depth</span><span class="p">,)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doGet</span><span class="p">(</span><span class="n">relativeUrl</span><span class="p">)</span>
+	
+<div class="viewcode-block" id="ContentService.getLastThreadedDiscussionResponse"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.content.service.ContentService.getLastThreadedDiscussionResponse">[docs]</a>    <span class="k">def</span> <span class="nf">getLastThreadedDiscussionResponse</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">userId</span><span class="p">,</span> <span class="n">courseId</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get a user&#39;s last threaded discussion response in a course with</span>
+<span class="sd">        ``GET /users/{userId}/courses/{courseId}/threadeddiscussions/lastResponse``</span>
+<span class="sd">        using OAuth1 or OAuth2 as a student, teacher, teaching assistant or admin.</span>
+<span class="sd">        </span>
+<span class="sd">        :param userId: ID of the user.</span>
+<span class="sd">        :type userId: str</span>
+<span class="sd">        :param courseId: ID of the course.</span>
+<span class="sd">        :type courseId: str</span>
+<span class="sd">        </span>
+<span class="sd">        :returns: A :class:`learningstudio.core.Response` object with details of status and content.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">relativeUrl</span> <span class="o">=</span> <span class="n">PATH_USERS_COURSES_THREADEDDISCUSSIONS__LASTRESPONSE</span> <span class="o">%</span> <span class="p">(</span><span class="n">userId</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doGet</span><span class="p">(</span><span class="n">relativeUrl</span><span class="p">)</span>
+	</div>
+<div class="viewcode-block" id="ContentService.getThreadedDiscussions"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.content.service.ContentService.getThreadedDiscussions">[docs]</a>    <span class="k">def</span> <span class="nf">getThreadedDiscussions</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">use_source_domain</span> <span class="o">=</span> <span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get threaded dicussions for a course with</span>
+<span class="sd">        ``GET /courses/{courseId}/threadeddiscussions``</span>
+<span class="sd">        using OAuth1 or OAuth2 as a student, teacher, teaching assistant or admin.</span>
+<span class="sd">        </span>
+<span class="sd">        :param courseId: ID of the course.</span>
+<span class="sd">        :type courseId: str</span>
+<span class="sd">        :key use_source_domain: Indicator of whether to use the source domain in links.</span>
+<span class="sd">        :type use_source_domain: bool</span>
+<span class="sd">        </span>
+<span class="sd">        :returns: A :class:`learningstudio.core.Response` object with details of status and content.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">use_source_domain</span> <span class="o">==</span> <span class="bp">True</span><span class="p">:</span> <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__getThreadedDiscussions</span><span class="p">(</span><span class="n">courseId</span><span class="p">)</span>
+
+        <span class="n">relativeUrl</span> <span class="o">=</span> <span class="n">PATH_COURSES_THREADEDDISCUSSIONS</span> <span class="o">%</span> <span class="p">(</span><span class="n">courseId</span><span class="p">,)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doGet</span><span class="p">(</span><span class="n">relativeUrl</span><span class="p">)</span>
+	</div>
+    <span class="k">def</span> <span class="nf">__getThreadedDiscussions</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">courseId</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get threaded dicussions for a course with</span>
+<span class="sd">        ``GET /courses/{courseId}/threadeddiscussions?UseSourceDomain={useSourceDomain}``</span>
+<span class="sd">        using OAuth1 or OAuth2 as a student, teacher, teaching assistant or admin.</span>
+<span class="sd">        </span>
+<span class="sd">        :param courseId: ID of the course.</span>
+<span class="sd">        :type courseId: str</span>
+<span class="sd">        </span>
+<span class="sd">        :returns: A :class:`learningstudio.core.Response` object with details of status and content.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">relativeUrl</span> <span class="o">=</span> <span class="n">PATH_COURSES_THREADEDDISCUSSIONS__USESOURCEDOMAIN</span> <span class="o">%</span> <span class="p">(</span><span class="n">courseId</span><span class="p">,)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doGet</span><span class="p">(</span><span class="n">relativeUrl</span><span class="p">)</span>
+    
+<div class="viewcode-block" id="ContentService.getThreadedDiscussionTopics"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.content.service.ContentService.getThreadedDiscussionTopics">[docs]</a>    <span class="k">def</span> <span class="nf">getThreadedDiscussionTopics</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">threadId</span><span class="p">,</span> <span class="n">use_source_domain</span> <span class="o">=</span> <span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get threaded dicussion topics for a course with</span>
+<span class="sd">        ``GET /courses/{courseId}/threadeddiscussions/{threadId}/topics``</span>
+<span class="sd">        using OAuth1 or OAuth2 as a student, teacher, teaching assistant or admin.</span>
+<span class="sd">        </span>
+<span class="sd">        :param courseId: ID of the course.</span>
+<span class="sd">        :type courseId: str</span>
+<span class="sd">        :param threadId: ID of the thread.</span>
+<span class="sd">        :type threadId: str</span>
+<span class="sd">        :key use_source_domain: Indicator of whether to use the source domain in links.</span>
+<span class="sd">        :type use_source_domain: bool</span>
+<span class="sd">        </span>
+<span class="sd">        :returns: A :class:`learningstudio.core.Response` object with details of status and content.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">use_source_domain</span> <span class="o">==</span> <span class="bp">True</span><span class="p">:</span> <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__getThreadedDiscussionTopics</span><span class="p">(</span><span class="n">courseId</span><span class="p">,</span> <span class="n">threadId</span><span class="p">)</span>
+        <span class="n">relativeUrl</span> <span class="o">=</span> <span class="n">PATH_COURSES_THREADEDDISCUSSIONS_TOPICS</span> <span class="o">%</span> <span class="p">(</span><span class="n">courseId</span><span class="p">,</span> <span class="n">threadId</span><span class="p">,)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doGet</span><span class="p">(</span><span class="n">relativeUrl</span><span class="p">)</span>
+    </div>
+    <span class="k">def</span> <span class="nf">__getThreadedDiscussionTopics</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">threadId</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get threaded dicussion topics for a course with</span>
+<span class="sd">        ``GET /courses/{courseId}/threadeddiscussions/{threadId}/topics?UseSourceDomain={useSourceDomain}``</span>
+<span class="sd">        using OAuth1 or OAuth2 as a student, teacher, teaching assistant or admin.</span>
+<span class="sd">        </span>
+<span class="sd">        :param courseId: ID of the course.</span>
+<span class="sd">        :type courseId: str</span>
+<span class="sd">        :param threadId: ID of the thread.</span>
+<span class="sd">        :type threadId: str</span>
+<span class="sd">        </span>
+<span class="sd">        :returns: A :class:`learningstudio.core.Response` object with details of status and content.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">relativeUrl</span> <span class="o">=</span> <span class="n">PATH_COURSES_THREADEDDISCUSSIONS_TOPICS__USESOURCEDOMAIN</span> <span class="o">%</span> <span class="p">(</span><span class="n">courseId</span><span class="p">,</span> <span class="n">threadId</span><span class="p">,)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doGet</span><span class="p">(</span><span class="n">relativeUrl</span><span class="p">)</span>
+    
+<div class="viewcode-block" id="ContentService.getThreadedDiscussionTopic"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.content.service.ContentService.getThreadedDiscussionTopic">[docs]</a>    <span class="k">def</span> <span class="nf">getThreadedDiscussionTopic</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">threadId</span><span class="p">,</span> <span class="n">topicId</span><span class="p">,</span> <span class="n">use_source_domain</span> <span class="o">=</span> <span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get threaded dicussion topics for a course with</span>
+<span class="sd">        ``GET /courses/{courseId}/threadeddiscussions/{threadId}/topics/{topicId}``</span>
+<span class="sd">        using OAuth1 or OAuth2 as a student, teacher, teaching assistant or admin.</span>
+<span class="sd">        </span>
+<span class="sd">        :param courseId: ID of the course.</span>
+<span class="sd">        :type courseId: str</span>
+<span class="sd">        :param threadId: ID of the thread.</span>
+<span class="sd">        :type threadId: str</span>
+<span class="sd">        :param topicId: ID of the topic.</span>
+<span class="sd">        :type topicId: str</span>
+<span class="sd">        :key use_source_domain: Indicator of whether to use the source domain in links.</span>
+<span class="sd">        :type use_source_domain: bool</span>
+<span class="sd">        </span>
+<span class="sd">        :returns: A :class:`learningstudio.core.Response` object with details of status and content.</span>
+<span class="sd">        </span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">use_source_domain</span> <span class="o">==</span> <span class="bp">True</span><span class="p">:</span> <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__getThreadedDiscussionTopic</span><span class="p">(</span><span class="n">courseId</span><span class="p">,</span> <span class="n">threadId</span><span class="p">,</span> <span class="n">topicId</span><span class="p">)</span>
+        
+        <span class="n">relativeUrl</span> <span class="o">=</span> <span class="n">PATH_COURSES_THREADEDDISCUSSIONS_TOPICS_</span> <span class="o">%</span>  <span class="p">(</span><span class="n">courseId</span><span class="p">,</span> <span class="n">threadId</span><span class="p">,</span> <span class="n">topicId</span><span class="p">,)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doGet</span><span class="p">(</span><span class="n">relativeUrl</span><span class="p">)</span>
+    </div>
+    <span class="k">def</span> <span class="nf">__getThreadedDiscussionTopic</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">threadId</span><span class="p">,</span> <span class="n">topicId</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get threaded dicussion topics for a course with</span>
+<span class="sd">        ``GET /courses/{courseId}/threadeddiscussions/{threadId}/topics/{topicId}?UseSourceDomain={useSourceDomain}``</span>
+<span class="sd">        using OAuth1 or OAuth2 as a student, teacher, teaching assistant or admin.</span>
+<span class="sd">        </span>
+<span class="sd">        :param courseId: ID of the course.</span>
+<span class="sd">        :type courseId: str</span>
+<span class="sd">        :param threadId: ID of the thread.</span>
+<span class="sd">        :type threadId: str</span>
+<span class="sd">        :param topicId: ID of the topic.</span>
+<span class="sd">        :type topicId: str</span>
+<span class="sd">        :param useSourceDomain: Indicator of whether to use the source domain in links.</span>
+<span class="sd">        :type useSourceDomain: bool</span>
+<span class="sd">        </span>
+<span class="sd">        :returns: A :class:`learningstudio.core.Response` object with details of status and content.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">relativeUrl</span> <span class="o">=</span> <span class="n">PATH_COURSES_THREADEDDISCUSSIONS_TOPICS_USESOURCEDOMAIN</span> <span class="o">%</span> <span class="p">(</span><span class="n">courseId</span><span class="p">,</span> <span class="n">threadId</span><span class="p">,</span> <span class="n">topicId</span><span class="p">,)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doGet</span><span class="p">(</span><span class="n">relativeUrl</span><span class="p">)</span>
+	
+<div class="viewcode-block" id="ContentService.getThreadedDiscussionResponseReadStatus"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.content.service.ContentService.getThreadedDiscussionResponseReadStatus">[docs]</a>    <span class="k">def</span> <span class="nf">getThreadedDiscussionResponseReadStatus</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">userId</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">threadId</span><span class="p">,</span> <span class="n">topicId</span><span class="p">,</span> <span class="n">responseId</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get read status of a user&#39;s discussion thread response with</span>
+<span class="sd">        ``GET /users/{userId}/courses/{courseId}/threadeddiscussions/{threadId}/topics/{topicId}/responses/{responseId}/readStatus``</span>
+<span class="sd">        using OAuth1 or OAuth2 as a student.</span>
+<span class="sd">        </span>
+<span class="sd">        :param userId: ID of the user.</span>
+<span class="sd">        :type userId: str</span>
+<span class="sd">        :param courseId: ID of the course.</span>
+<span class="sd">        :type courseId: str</span>
+<span class="sd">        :param threadId: ID of the thread.</span>
+<span class="sd">        :type threadId: str</span>
+<span class="sd">        :param topicId: ID of the topic.</span>
+<span class="sd">        :type topicId: str</span>
+<span class="sd">        :param responseId: ID of the response.</span>
+<span class="sd">        :type responseId: str</span>
+<span class="sd">        </span>
+<span class="sd">        :returns: A :class:`learningstudio.core.Response` object with details of status and content.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">relativeUrl</span> <span class="o">=</span> <span class="n">PATH_USERS_COURSES_THREADEDDISCUSSIONS_TOPICS_RESPONSE_READSTATUS</span> <span class="o">%</span> <span class="p">(</span><span class="n">userId</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">threadId</span><span class="p">,</span> <span class="n">topicId</span><span class="p">,</span> <span class="n">responseId</span><span class="p">,)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doGet</span><span class="p">(</span><span class="n">relativeUrl</span><span class="p">)</span>
+	</div>
+<div class="viewcode-block" id="ContentService.updateThreadedDiscussionResponseReadStatus"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.content.service.ContentService.updateThreadedDiscussionResponseReadStatus">[docs]</a>    <span class="k">def</span> <span class="nf">updateThreadedDiscussionResponseReadStatus</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">userId</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">threadId</span><span class="p">,</span> 
+                                                   <span class="n">topicId</span><span class="p">,</span> <span class="n">responseId</span><span class="p">,</span> <span class="n">readStatus</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get read status of a user&#39;s discussion thread response with</span>
+<span class="sd">        ``PUT /users/{userId}/courses/{courseId}/threadeddiscussions/{threadId}/topics/{topicId}/responses/{responseId}/readStatus``</span>
+<span class="sd">        using OAuth1 or OAuth2 as a student.</span>
+<span class="sd">        </span>
+<span class="sd">        :param userId: ID of the user.</span>
+<span class="sd">        :type userId: str</span>
+<span class="sd">        :param courseId: ID of the course.</span>
+<span class="sd">        :type courseId: str</span>
+<span class="sd">        :param threadId: ID of the thread.</span>
+<span class="sd">        :type threadId: str</span>
+<span class="sd">        :param topicId: ID of the topic.</span>
+<span class="sd">        :type topicId: str</span>
+<span class="sd">        :param responseId: ID of the response.</span>
+<span class="sd">        :type responseId: str</span>
+<span class="sd">        :param readStatus: Read status Message.</span>
+<span class="sd">        :type readStatus: str</span>
+<span class="sd">        </span>
+<span class="sd">        :returns: A :class:`learningstudio.core.Response` object with details of status and content.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">relativeUrl</span> <span class="o">=</span> <span class="n">PATH_USERS_COURSES_THREADEDDISCUSSIONS_TOPICS_RESPONSE_READSTATUS</span> <span class="o">%</span> <span class="p">(</span><span class="n">userId</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">threadId</span><span class="p">,</span> <span class="n">topicId</span><span class="p">,</span> <span class="n">responseId</span><span class="p">,)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doPut</span><span class="p">(</span><span class="n">relativeUrl</span><span class="p">,</span> <span class="n">body</span> <span class="o">=</span> <span class="n">readStatus</span><span class="p">)</span>
+	</div>
+<div class="viewcode-block" id="ContentService.getThreadedDiscussionResponses"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.content.service.ContentService.getThreadedDiscussionResponses">[docs]</a>    <span class="k">def</span> <span class="nf">getThreadedDiscussionResponses</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">threadId</span><span class="p">,</span> <span class="n">topicId</span><span class="p">,</span> <span class="n">responseId</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get responses to a specific discussion thread response with</span>
+<span class="sd">        ``GET /courses/{courseId}/threadeddiscussions/{threadId}/topics/{topicId}/responses/{responseId}/responses``</span>
+<span class="sd">        using OAuth1 or OAuth2 as a student, teacher, teaching assistant or admin.</span>
+<span class="sd">        </span>
+<span class="sd">        :param courseId: ID of the course.</span>
+<span class="sd">        :type courseId: str</span>
+<span class="sd">        :param threadId: ID of the thread.</span>
+<span class="sd">        :type threadId: str</span>
+<span class="sd">        :param topicId: ID of the topic.</span>
+<span class="sd">        :type topicId: str</span>
+<span class="sd">        :param responseId: ID of the response.</span>
+<span class="sd">        :type responseId: str</span>
+<span class="sd">        </span>
+<span class="sd">        :returns: A :class:`learningstudio.core.Response` object with details of status and content.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">relativeUrl</span> <span class="o">=</span> <span class="n">PATH_COURSES_THREADEDDISCUSSIONS_TOPICS_RESPONSES_RESPONSES</span> <span class="o">%</span> <span class="p">(</span><span class="n">courseId</span><span class="p">,</span> <span class="n">threadId</span><span class="p">,</span> <span class="n">topicId</span><span class="p">,</span> <span class="n">responseId</span><span class="p">,)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doGet</span><span class="p">(</span><span class="n">relativeUrl</span><span class="p">)</span>
+    </div>
+<div class="viewcode-block" id="ContentService.createThreadedDiscussionResponse"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.content.service.ContentService.createThreadedDiscussionResponse">[docs]</a>    <span class="k">def</span> <span class="nf">createThreadedDiscussionResponse</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">threadId</span><span class="p">,</span> <span class="n">topicId</span><span class="p">,</span> <span class="n">response_id</span> <span class="o">=</span> <span class="bp">None</span><span class="p">,</span> <span class="n">response_message</span> <span class="o">=</span> <span class="s">&quot;&quot;</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Create a response to a specific discussion thread response with</span>
+<span class="sd">        ``POST /courses/{courseId}/threadeddiscussions/{threadId}/topics/{topicId}/responses/{responseId}/responses``</span>
+<span class="sd">        using OAuth2 as a student, teacher, teaching assistant or admin.</span>
+<span class="sd">        </span>
+<span class="sd">        :param courseId: ID of the course.</span>
+<span class="sd">        :type courseId: str</span>
+<span class="sd">        :param threadId: ID of the thread.</span>
+<span class="sd">        :type threadId: str</span>
+<span class="sd">        :param topicId: ID of the topic.</span>
+<span class="sd">        :type topicId: str</span>
+<span class="sd">        :key response_id: ID of the response.</span>
+<span class="sd">        :type response_id: str</span>
+<span class="sd">        :key response_message: Response message to create.</span>
+<span class="sd">        :type response_message: str</span>
+<span class="sd">        </span>
+<span class="sd">        :returns: A :class:`learningstudio.core.Response` object with details of status and content.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">responseId</span> <span class="o">=</span> <span class="n">response_id</span>
+        <span class="n">responseMessage</span> <span class="o">=</span> <span class="n">response_message</span>
+        <span class="k">if</span> <span class="n">responseId</span> <span class="o">==</span> <span class="bp">None</span><span class="p">:</span> <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__createThreadedDiscussionResponse</span><span class="p">(</span><span class="n">courseId</span><span class="p">,</span> <span class="n">threadId</span><span class="p">,</span> <span class="n">topicId</span><span class="p">,</span> <span class="n">responseMessage</span><span class="p">)</span>
+        
+        <span class="n">relativeUrl</span> <span class="o">=</span> <span class="n">PATH_COURSES_THREADEDDISCUSSIONS_TOPICS_RESPONSES_RESPONSES</span> <span class="o">%</span> <span class="p">(</span><span class="n">courseId</span><span class="p">,</span> <span class="n">threadId</span><span class="p">,</span> <span class="n">topicId</span><span class="p">,</span> <span class="n">responseId</span><span class="p">,)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doPost</span><span class="p">(</span><span class="n">relativeUrl</span><span class="p">,</span> <span class="n">body</span> <span class="o">=</span> <span class="n">responseMessage</span><span class="p">)</span>
+	</div>
+    <span class="k">def</span> <span class="nf">__createThreadedDiscussionResponse</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">threadId</span><span class="p">,</span> <span class="n">topicId</span><span class="p">,</span> <span class="n">responseMessage</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Create a response to a specific discussion thread topic with</span>
+<span class="sd">        ``POST /courses/{courseId}/threadeddiscussions/{threadId}/topics/{topicId}/responses``</span>
+<span class="sd">        using OAuth2 as a student, teacher, teaching assistant or admin.</span>
+<span class="sd">        </span>
+<span class="sd">        :param courseId: ID of the course.</span>
+<span class="sd">        :type courseId: str</span>
+<span class="sd">        :param threadId: ID of the thread.</span>
+<span class="sd">        :type threadId: str</span>
+<span class="sd">        :param topicId: ID of the topic.</span>
+<span class="sd">        :type topicId: str</span>
+<span class="sd">        :param responseMessage: Response message to create.</span>
+<span class="sd">        :type responseMessage: str</span>
+<span class="sd">        </span>
+<span class="sd">        :returns: A :class:`learningstudio.core.Response` object with details of status and content.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">relativeUrl</span> <span class="o">=</span> <span class="n">PATH_COURSES_THREADEDDISCUSSIONS_TOPICS_RESPONSES</span> <span class="o">%</span> <span class="p">(</span><span class="n">courseId</span><span class="p">,</span> <span class="n">threadId</span><span class="p">,</span> <span class="n">topicId</span><span class="p">,)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doPost</span><span class="p">(</span><span class="n">relativeUrl</span><span class="p">,</span> <span class="n">body</span> <span class="o">=</span> <span class="n">responseMessage</span><span class="p">)</span>
+    
+<div class="viewcode-block" id="ContentService.updateThreadedDiscussionResponse"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.content.service.ContentService.updateThreadedDiscussionResponse">[docs]</a>    <span class="k">def</span> <span class="nf">updateThreadedDiscussionResponse</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">threadId</span><span class="p">,</span> <span class="n">topicId</span><span class="p">,</span> <span class="n">responseId</span><span class="p">,</span> <span class="n">responseMessage</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Update a response to a specific discussion thread response with</span>
+<span class="sd">        ``PUT /courses/{courseId}/threadeddiscussions/{threadId}/topics/{topicId}/responses/{responseId}``</span>
+<span class="sd">        using OAuth2 as a student, teacher, teaching assistant or admin.</span>
+<span class="sd">        </span>
+<span class="sd">        :param courseId: ID of the course.</span>
+<span class="sd">        :type courseId: str</span>
+<span class="sd">        :param threadId: ID of the thread.</span>
+<span class="sd">        :type threadId: str</span>
+<span class="sd">        :param topicId: ID of the topic.</span>
+<span class="sd">        :type topicId: str</span>
+<span class="sd">        :param responseID: ID of the response.</span>
+<span class="sd">        :type responseID: str</span>
+<span class="sd">        :param responseMessage: Response message to create.</span>
+<span class="sd">        :type responseMessage: str</span>
+<span class="sd">        </span>
+<span class="sd">        :returns: A :class:`learningstudio.core.Response` object with details of status and content.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">relativeUrl</span> <span class="o">=</span> <span class="n">PATH_COURSES_THREADEDDISCUSSIONS_TOPICS_RESPONSES_</span> <span class="o">%</span> <span class="p">(</span><span class="n">courseId</span><span class="p">,</span> <span class="n">threadId</span><span class="p">,</span> <span class="n">topicId</span><span class="p">,</span> <span class="n">responseId</span><span class="p">,)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doPut</span><span class="p">(</span><span class="n">relativeUrl</span><span class="p">,</span> <span class="n">body</span> <span class="o">=</span> <span class="n">responseMessage</span><span class="p">)</span>
+    </div>
+<div class="viewcode-block" id="ContentService.getThreadedDiscussionResponse"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.content.service.ContentService.getThreadedDiscussionResponse">[docs]</a>    <span class="k">def</span> <span class="nf">getThreadedDiscussionResponse</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">threadId</span><span class="p">,</span> <span class="n">topicId</span><span class="p">,</span> <span class="n">responseId</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get a specific discussion thread response with</span>
+<span class="sd">        ``GET /courses/{courseId}/threadeddiscussions/{threadId}/topics/{topicId}/responses/{responseId}``</span>
+<span class="sd">        using OAuth2 as a student, teacher, teaching assistant or admin.</span>
+<span class="sd">        </span>
+<span class="sd">        :param courseId: ID of the course.</span>
+<span class="sd">        :type courseId: str</span>
+<span class="sd">        :param threadId: ID of the thread.</span>
+<span class="sd">        :type threadId: str</span>
+<span class="sd">        :param topicId: ID of the topic.</span>
+<span class="sd">        :type topicId: str</span>
+<span class="sd">        :param responseId: ID of the response.</span>
+<span class="sd">        :type responseId: str</span>
+<span class="sd">        :param responseMessage: Response message to create.</span>
+<span class="sd">        :type responseMessage: str</span>
+<span class="sd">        </span>
+<span class="sd">        :returns: A :class:`learningstudio.core.Response` object with details of status and content.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">relativeUrl</span> <span class="o">=</span> <span class="n">PATH_COURSES_THREADEDDISCUSSIONS_TOPICS_RESPONSES_</span> <span class="o">%</span> <span class="p">(</span><span class="n">courseId</span><span class="p">,</span> <span class="n">threadId</span><span class="p">,</span> <span class="n">topicId</span><span class="p">,</span> <span class="n">responseId</span><span class="p">,)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doGet</span><span class="p">(</span><span class="n">relativeUrl</span><span class="p">)</span>
+    </div>
+<div class="viewcode-block" id="ContentService.deleteThreadedDiscussionResponse"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.content.service.ContentService.deleteThreadedDiscussionResponse">[docs]</a>    <span class="k">def</span> <span class="nf">deleteThreadedDiscussionResponse</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">courseId</span><span class="p">,</span> <span class="n">threadId</span><span class="p">,</span> <span class="n">topicId</span><span class="p">,</span> <span class="n">responseId</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Delete a specific discussion thread response with</span>
+<span class="sd">        ``DELETE /courses/{courseId}/threadeddiscussions/{threadId}/topics/{topicId}/responses/{responseId}``</span>
+<span class="sd">        using OAuth1 or OAuth2 as a teacher, teaching assistant or admin.</span>
+<span class="sd">        </span>
+<span class="sd">        :param courseId: ID of the course.</span>
+<span class="sd">        :type courseId: str</span>
+<span class="sd">        :param threadId: ID of the thread.</span>
+<span class="sd">        :type threadId: str</span>
+<span class="sd">        :param topicId: ID of the topic.</span>
+<span class="sd">        :type topicId: str</span>
+<span class="sd">        :param responseID: ID of the response.</span>
+<span class="sd">        :type responseID: str</span>
+<span class="sd">        :param responseMessage: Response message to create.</span>
+<span class="sd">        :type responseMessage: str</span>
+<span class="sd">        </span>
+<span class="sd">        :returns: A :class:`learningstudio.core.Response` object with details of status and content.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">relativeUrl</span> <span class="o">=</span> <span class="n">PATH_COURSES_THREADEDDISCUSSIONS_TOPICS_RESPONSES_</span> <span class="o">%</span> <span class="p">(</span><span class="n">courseId</span><span class="p">,</span> <span class="n">threadId</span><span class="p">,</span> <span class="n">topicId</span><span class="p">,</span> <span class="n">responseId</span><span class="p">,)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">doDelete</span><span class="p">(</span><span class="n">relativeUrl</span><span class="p">)</span>
+</div>
+    <span class="k">def</span> <span class="nf">__getRelativePath</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">url</span><span class="p">):</span>
+        <span class="n">relativeUrl</span> <span class="o">=</span> <span class="bp">None</span>
+		
+        <span class="n">index</span> <span class="o">=</span> <span class="n">url</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">API_DOMAIN</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">index</span> <span class="o">&gt;</span> <span class="o">-</span><span class="mi">1</span><span class="p">:</span>
+            <span class="n">index</span> <span class="o">+=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">API_DOMAIN</span><span class="p">)</span>
+            <span class="n">relativeUrl</span> <span class="o">=</span> <span class="n">url</span><span class="p">[</span><span class="n">index</span><span class="p">:]</span>
+        <span class="k">else</span> <span class="p">:</span>
+            <span class="n">index</span> <span class="o">=</span> <span class="n">url</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s">&quot;.com&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">index</span> <span class="o">&gt;</span> <span class="o">-</span><span class="mi">1</span><span class="p">:</span>
+                <span class="n">index</span> <span class="o">+=</span> <span class="mi">4</span>
+                <span class="n">relativeUrl</span> <span class="o">=</span> <span class="n">url</span><span class="p">[</span><span class="n">index</span><span class="p">:]</span>
+        <span class="k">return</span> <span class="n">relativeUrl</span><span class="p">;</span></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../index.html">LearningStudio API 1.0 documentation</a> &raquo;</li>
+          <li><a href="../../index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2014, Pearson.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.2.
+    </div>
+  </body>
+</html>

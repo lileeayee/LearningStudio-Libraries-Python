@@ -1,0 +1,275 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>learningstudio.oauth.config &mdash; LearningStudio API 1.0 documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '1.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="LearningStudio API 1.0 documentation" href="../../../index.html" />
+    <link rel="up" title="Module code" href="../../index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../index.html">LearningStudio API 1.0 documentation</a> &raquo;</li>
+          <li><a href="../../index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for learningstudio.oauth.config</h1><div class="highlight"><pre>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">LearningStudio RESTful API Libraries </span>
+<span class="sd">These libraries make it easier to use the LearningStudio Course APIs.</span>
+<span class="sd">Full Documentation is provided with the library. </span>
+
+<span class="sd">Need Help or Have Questions? </span>
+<span class="sd">Please use the PDN Developer Community at https://community.pdn.pearson.com</span>
+
+<span class="sd">:category   LearningStudio Course APIs</span>
+<span class="sd">:author     Wes Williams &lt;wes.williams@pearson.com&gt;</span>
+<span class="sd">:author     Pearson Developer Services Team &lt;apisupport@pearson.com&gt;</span>
+<span class="sd">:copyright  2014 Pearson Education Inc.</span>
+<span class="sd">:license    http://www.apache.org/licenses/LICENSE-2.0  Apache 2.0</span>
+<span class="sd">:version    1.0</span>
+
+<span class="sd">Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
+<span class="sd">you may not use this file except in compliance with the License.</span>
+<span class="sd">You may obtain a copy of the License at</span>
+
+<span class="sd">    http://www.apache.org/licenses/LICENSE-2.0</span>
+
+<span class="sd">Unless required by applicable law or agreed to in writing, software</span>
+<span class="sd">distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="sd">WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="sd">See the License for the specific language governing permissions and</span>
+<span class="sd">limitations under the License.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">config</span>
+<span class="sd">------</span>
+
+<span class="sd">Configuration objects for initializing OAuth1 and OAuth2 services.</span>
+
+
+<span class="sd">&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="oauth_config"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.oauth.config.oauth_config">[docs]</a><span class="k">def</span> <span class="nf">oauth_config</span><span class="p">(</span><span class="n">application_id</span><span class="p">,</span> <span class="n">application_name</span> <span class="o">=</span> <span class="s">&#39;&#39;</span><span class="p">,</span>
+                 <span class="n">client_string</span> <span class="o">=</span> <span class="s">&#39;&#39;</span><span class="p">,</span> <span class="n">consumer_key</span> <span class="o">=</span> <span class="s">&#39;&#39;</span><span class="p">,</span> 
+                 <span class="n">consumer_secret</span> <span class="o">=</span> <span class="s">&#39;&#39;</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Creates a new OAuth configuration.</span>
+
+<span class="sd">    :param application_id: The unique identifier of the client application.</span>
+<span class="sd">    :type application_id: str</span>
+<span class="sd">    :param application_name: Name of the client application.</span>
+<span class="sd">    :type application_name: str</span>
+<span class="sd">    :param client_string: The unique client string.</span>
+<span class="sd">    :type client_string: str</span>
+<span class="sd">    :param consumer_key: The key required to receive a request token.</span>
+<span class="sd">    :type consumer_key: str</span>
+<span class="sd">    :param consumer_secret: The secret required to receive a request token.</span>
+<span class="sd">    :type consumer_secret: str</span>
+
+<span class="sd">    :returns: The new oauth configuration.</span>
+<span class="sd">    :rtype: dict</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="p">{</span> <span class="s">&#39;application_id&#39;</span> <span class="p">:</span> <span class="n">application_id</span><span class="p">,</span>
+             <span class="s">&#39;application_name&#39;</span> <span class="p">:</span> <span class="n">application_name</span><span class="p">,</span>
+             <span class="s">&#39;client_string&#39;</span> <span class="p">:</span> <span class="n">client_string</span><span class="p">,</span>
+             <span class="s">&#39;consumer_key&#39;</span> <span class="p">:</span> <span class="n">consumer_key</span><span class="p">,</span>
+             <span class="s">&#39;consumer_secret&#39;</span> <span class="p">:</span> <span class="n">consumer_secret</span> <span class="p">}</span>
+</div>
+<div class="viewcode-block" id="oauth1_signature_config"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.oauth.config.oauth1_signature_config">[docs]</a><span class="k">def</span> <span class="nf">oauth1_signature_config</span><span class="p">(</span><span class="n">application_id</span><span class="p">,</span> <span class="n">consumer_key</span><span class="p">,</span>
+                            <span class="n">consumer_secret</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Convenience function for creating an OAuth1 signature configuration.</span>
+
+<span class="sd">    :param application_id: The unique identifier of the client application.</span>
+<span class="sd">    :type application_id: str</span>
+<span class="sd">    :param consumer_key: The key required to receive a request token.</span>
+<span class="sd">    :type consumer_key: str</span>
+<span class="sd">    :param consumer_secret: The secret required to receive a request token.</span>
+<span class="sd">    :type consumer_secret: str</span>
+
+<span class="sd">    :returns: The new oauth configuration.</span>
+<span class="sd">    :rtype: dict</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">oauth_config</span><span class="p">(</span><span class="n">application_id</span><span class="p">,</span> <span class="n">consumer_key</span> <span class="o">=</span> <span class="n">consumer_key</span><span class="p">,</span>
+                        <span class="n">consumer_secret</span> <span class="o">=</span> <span class="n">consumer_secret</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="oauth2_assertion_config"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.oauth.config.oauth2_assertion_config">[docs]</a><span class="k">def</span> <span class="nf">oauth2_assertion_config</span><span class="p">(</span><span class="n">application_id</span><span class="p">,</span> <span class="n">application_name</span><span class="p">,</span>
+                            <span class="n">client_string</span><span class="p">,</span> <span class="n">consumer_key</span><span class="p">,</span>
+                            <span class="n">consumer_secret</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Convenience function for creating an OAuth2 assertion configuration.</span>
+<span class="sd">    </span>
+<span class="sd">    :param application_id: The unique identifier of the client application.</span>
+<span class="sd">    :type application_id: str</span>
+<span class="sd">    :param application_name: Name of the client application.</span>
+<span class="sd">    :type application_name: str</span>
+<span class="sd">    :param client_string: The unique client string.</span>
+<span class="sd">    :type client_string: str</span>
+<span class="sd">    :param consumer_key: The key required to receive a request token.</span>
+<span class="sd">    :type consumer_key: str</span>
+<span class="sd">    :param consumer_secret: The secret required to receive a request token.</span>
+<span class="sd">    :type consumer_secret: str</span>
+
+<span class="sd">    :returns: The new oauth configuration.</span>
+<span class="sd">    :rtype: dict</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">oauth_config</span><span class="p">(</span><span class="n">application_id</span><span class="p">,</span> <span class="n">application_name</span><span class="p">,</span>
+                        <span class="n">client_string</span><span class="p">,</span> <span class="n">consumer_key</span><span class="p">,</span>
+                        <span class="n">consumer_secret</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="oauth2_password_config"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.oauth.config.oauth2_password_config">[docs]</a><span class="k">def</span> <span class="nf">oauth2_password_config</span><span class="p">(</span><span class="n">application_id</span><span class="p">,</span> <span class="n">client_string</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Convenience function for creating an OAuth2 password configuration.</span>
+<span class="sd">    </span>
+<span class="sd">    :param application_id: The unique identifier of the client application.</span>
+<span class="sd">    :type application_id: str</span>
+<span class="sd">    :param client_string: The unique client string.</span>
+<span class="sd">    :type client_string: str</span>
+
+<span class="sd">    :returns: The new oauth configuration.</span>
+<span class="sd">    :rtype: dict</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">oauth_config</span><span class="p">(</span><span class="n">application_id</span><span class="p">,</span> <span class="n">client_string</span> <span class="o">=</span> <span class="n">client_string</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="application_id"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.oauth.config.application_id">[docs]</a><span class="k">def</span> <span class="nf">application_id</span><span class="p">(</span><span class="n">config</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Returns the application_id from the configuration.</span>
+
+<span class="sd">    :param config: Configuration to extract the application_id from.</span>
+<span class="sd">    :type config: dict</span>
+
+<span class="sd">    :returns: The application_id from the configuration.</span>
+<span class="sd">    :rtype: str</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">config</span><span class="p">[</span><span class="s">&#39;application_id&#39;</span><span class="p">]</span>
+</div>
+<div class="viewcode-block" id="application_name"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.oauth.config.application_name">[docs]</a><span class="k">def</span> <span class="nf">application_name</span><span class="p">(</span><span class="n">config</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Returns the application_name from the configuration.</span>
+
+<span class="sd">    :param config: Configuration to extract the application_name from.</span>
+<span class="sd">    :type config: dict</span>
+
+<span class="sd">    :returns: The application_name from the configuration.</span>
+<span class="sd">    :rtype: str</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">return</span> <span class="n">config</span><span class="p">[</span><span class="s">&#39;application_name&#39;</span><span class="p">]</span>
+</div>
+<div class="viewcode-block" id="client_string"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.oauth.config.client_string">[docs]</a><span class="k">def</span> <span class="nf">client_string</span><span class="p">(</span><span class="n">config</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Returns the client_string from the configuration.</span>
+
+<span class="sd">    :param config: Configuration to extract the client_string from.</span>
+<span class="sd">    :type config: dict</span>
+
+<span class="sd">    :returns: The client_string from the configuration.</span>
+<span class="sd">    :rtype: str</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">return</span> <span class="n">config</span><span class="p">[</span><span class="s">&#39;client_string&#39;</span><span class="p">]</span>
+</div>
+<div class="viewcode-block" id="consumer_secret"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.oauth.config.consumer_secret">[docs]</a><span class="k">def</span> <span class="nf">consumer_secret</span><span class="p">(</span><span class="n">config</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Returns the consumer_secret from the configuration.</span>
+
+<span class="sd">    :param config: Configuration to extract the consumer_secret from.</span>
+<span class="sd">    :type config: dict</span>
+
+<span class="sd">    :returns: The consumer_secret from the configuration.</span>
+<span class="sd">    :rtype: str</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">return</span> <span class="n">config</span><span class="p">[</span><span class="s">&#39;consumer_secret&#39;</span><span class="p">]</span>
+</div>
+<div class="viewcode-block" id="consumer_key"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.oauth.config.consumer_key">[docs]</a><span class="k">def</span> <span class="nf">consumer_key</span><span class="p">(</span><span class="n">config</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Returns the consumer_key from the configuration.</span>
+
+<span class="sd">    :param config: Configuration to extract the consumer_key from.</span>
+<span class="sd">    :type config: dict</span>
+
+<span class="sd">    :returns: The consumer_key from the configuration.</span>
+<span class="sd">    :rtype: str</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">return</span> <span class="n">config</span><span class="p">[</span><span class="s">&#39;consumer_key&#39;</span><span class="p">]</span></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../index.html">LearningStudio API 1.0 documentation</a> &raquo;</li>
+          <li><a href="../../index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2014, Pearson.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.2.
+    </div>
+  </body>
+</html>

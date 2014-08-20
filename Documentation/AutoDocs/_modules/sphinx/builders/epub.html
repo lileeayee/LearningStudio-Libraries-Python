@@ -1,0 +1,858 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>sphinx.builders.epub &mdash; LearningStudio API 1.0 documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '1.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="LearningStudio API 1.0 documentation" href="../../../index.html" />
+    <link rel="up" title="sphinx.builders" href="../builders.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../index.html">LearningStudio API 1.0 documentation</a> &raquo;</li>
+          <li><a href="../../index.html" >Module code</a> &raquo;</li>
+          <li><a href="../../sphinx.html" >sphinx</a> &raquo;</li>
+          <li><a href="../builders.html" accesskey="U">sphinx.builders</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for sphinx.builders.epub</h1><div class="highlight"><pre>
+<span class="c"># -*- coding: utf-8 -*-</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    sphinx.builders.epub</span>
+<span class="sd">    ~~~~~~~~~~~~~~~~~~~~</span>
+
+<span class="sd">    Build epub files.</span>
+<span class="sd">    Originally derived from qthelp.py.</span>
+
+<span class="sd">    :copyright: Copyright 2007-2014 by the Sphinx team, see AUTHORS.</span>
+<span class="sd">    :license: BSD, see LICENSE for details.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">codecs</span>
+<span class="kn">import</span> <span class="nn">zipfile</span>
+<span class="kn">from</span> <span class="nn">os</span> <span class="kn">import</span> <span class="n">path</span>
+
+<span class="k">try</span><span class="p">:</span>
+    <span class="kn">from</span> <span class="nn">PIL</span> <span class="kn">import</span> <span class="n">Image</span>
+<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="kn">import</span> <span class="nn">Image</span>
+    <span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+        <span class="n">Image</span> <span class="o">=</span> <span class="bp">None</span>
+
+<span class="kn">from</span> <span class="nn">docutils</span> <span class="kn">import</span> <span class="n">nodes</span>
+
+<span class="kn">from</span> <span class="nn">sphinx</span> <span class="kn">import</span> <span class="n">addnodes</span>
+<span class="kn">from</span> <span class="nn">sphinx.builders.html</span> <span class="kn">import</span> <span class="n">StandaloneHTMLBuilder</span>
+<span class="kn">from</span> <span class="nn">sphinx.util.osutil</span> <span class="kn">import</span> <span class="n">ensuredir</span><span class="p">,</span> <span class="n">copyfile</span><span class="p">,</span> <span class="n">EEXIST</span>
+<span class="kn">from</span> <span class="nn">sphinx.util.smartypants</span> <span class="kn">import</span> <span class="n">sphinx_smarty_pants</span> <span class="k">as</span> <span class="n">ssp</span>
+<span class="kn">from</span> <span class="nn">sphinx.util.console</span> <span class="kn">import</span> <span class="n">brown</span>
+
+
+<span class="c"># (Fragment) templates from which the metainfo files content.opf, toc.ncx,</span>
+<span class="c"># mimetype, and META-INF/container.xml are created.</span>
+<span class="c"># This template section also defines strings that are embedded in the html</span>
+<span class="c"># output but that may be customized by (re-)setting module attributes,</span>
+<span class="c"># e.g. from conf.py.</span>
+
+<span class="n">_mimetype_template</span> <span class="o">=</span> <span class="s">&#39;application/epub+zip&#39;</span> <span class="c"># no EOL!</span>
+
+<span class="n">_container_template</span> <span class="o">=</span> <span class="s">u&#39;&#39;&#39;</span><span class="se">\</span>
+<span class="s">&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt;</span>
+<span class="s">&lt;container version=&quot;1.0&quot;</span>
+<span class="s">      xmlns=&quot;urn:oasis:names:tc:opendocument:xmlns:container&quot;&gt;</span>
+<span class="s">  &lt;rootfiles&gt;</span>
+<span class="s">    &lt;rootfile full-path=&quot;content.opf&quot;</span>
+<span class="s">        media-type=&quot;application/oebps-package+xml&quot;/&gt;</span>
+<span class="s">  &lt;/rootfiles&gt;</span>
+<span class="s">&lt;/container&gt;</span>
+<span class="s">&#39;&#39;&#39;</span>
+
+<span class="n">_toc_template</span> <span class="o">=</span> <span class="s">u&#39;&#39;&#39;</span><span class="se">\</span>
+<span class="s">&lt;?xml version=&quot;1.0&quot;?&gt;</span>
+<span class="s">&lt;ncx version=&quot;2005-1&quot; xmlns=&quot;http://www.daisy.org/z3986/2005/ncx/&quot;&gt;</span>
+<span class="s">  &lt;head&gt;</span>
+<span class="s">    &lt;meta name=&quot;dtb:uid&quot; content=&quot;</span><span class="si">%(uid)s</span><span class="s">&quot;/&gt;</span>
+<span class="s">    &lt;meta name=&quot;dtb:depth&quot; content=&quot;</span><span class="si">%(level)d</span><span class="s">&quot;/&gt;</span>
+<span class="s">    &lt;meta name=&quot;dtb:totalPageCount&quot; content=&quot;0&quot;/&gt;</span>
+<span class="s">    &lt;meta name=&quot;dtb:maxPageNumber&quot; content=&quot;0&quot;/&gt;</span>
+<span class="s">  &lt;/head&gt;</span>
+<span class="s">  &lt;docTitle&gt;</span>
+<span class="s">    &lt;text&gt;</span><span class="si">%(title)s</span><span class="s">&lt;/text&gt;</span>
+<span class="s">  &lt;/docTitle&gt;</span>
+<span class="s">  &lt;navMap&gt;</span>
+<span class="si">%(navpoints)s</span><span class="s"></span>
+<span class="s">  &lt;/navMap&gt;</span>
+<span class="s">&lt;/ncx&gt;</span>
+<span class="s">&#39;&#39;&#39;</span>
+
+<span class="n">_navpoint_template</span> <span class="o">=</span> <span class="s">u&#39;&#39;&#39;</span><span class="se">\</span>
+<span class="si">%(indent)s</span><span class="s">  &lt;navPoint id=&quot;</span><span class="si">%(navpoint)s</span><span class="s">&quot; playOrder=&quot;</span><span class="si">%(playorder)d</span><span class="s">&quot;&gt;</span>
+<span class="si">%(indent)s</span><span class="s">    &lt;navLabel&gt;</span>
+<span class="si">%(indent)s</span><span class="s">      &lt;text&gt;</span><span class="si">%(text)s</span><span class="s">&lt;/text&gt;</span>
+<span class="si">%(indent)s</span><span class="s">    &lt;/navLabel&gt;</span>
+<span class="si">%(indent)s</span><span class="s">    &lt;content src=&quot;</span><span class="si">%(refuri)s</span><span class="s">&quot; /&gt;</span>
+<span class="si">%(indent)s</span><span class="s">  &lt;/navPoint&gt;&#39;&#39;&#39;</span>
+
+<span class="n">_navpoint_indent</span> <span class="o">=</span> <span class="s">&#39;  &#39;</span>
+<span class="n">_navPoint_template</span> <span class="o">=</span> <span class="s">&#39;navPoint</span><span class="si">%d</span><span class="s">&#39;</span>
+
+<span class="n">_content_template</span> <span class="o">=</span> <span class="s">u&#39;&#39;&#39;</span><span class="se">\</span>
+<span class="s">&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt;</span>
+<span class="s">&lt;package xmlns=&quot;http://www.idpf.org/2007/opf&quot; version=&quot;2.0&quot;</span>
+<span class="s">      unique-identifier=&quot;</span><span class="si">%(uid)s</span><span class="s">&quot;&gt;</span>
+<span class="s">  &lt;metadata xmlns:opf=&quot;http://www.idpf.org/2007/opf&quot;</span>
+<span class="s">        xmlns:dc=&quot;http://purl.org/dc/elements/1.1/&quot;&gt;</span>
+<span class="s">    &lt;dc:language&gt;</span><span class="si">%(lang)s</span><span class="s">&lt;/dc:language&gt;</span>
+<span class="s">    &lt;dc:title&gt;</span><span class="si">%(title)s</span><span class="s">&lt;/dc:title&gt;</span>
+<span class="s">    &lt;dc:creator opf:role=&quot;aut&quot;&gt;</span><span class="si">%(author)s</span><span class="s">&lt;/dc:creator&gt;</span>
+<span class="s">    &lt;dc:publisher&gt;</span><span class="si">%(publisher)s</span><span class="s">&lt;/dc:publisher&gt;</span>
+<span class="s">    &lt;dc:rights&gt;</span><span class="si">%(copyright)s</span><span class="s">&lt;/dc:rights&gt;</span>
+<span class="s">    &lt;dc:identifier id=&quot;</span><span class="si">%(uid)s</span><span class="s">&quot; opf:scheme=&quot;</span><span class="si">%(scheme)s</span><span class="s">&quot;&gt;</span><span class="si">%(id)s</span><span class="s">&lt;/dc:identifier&gt;</span>
+<span class="s">    &lt;dc:date&gt;</span><span class="si">%(date)s</span><span class="s">&lt;/dc:date&gt;</span>
+<span class="s">  &lt;/metadata&gt;</span>
+<span class="s">  &lt;manifest&gt;</span>
+<span class="s">    &lt;item id=&quot;ncx&quot; href=&quot;toc.ncx&quot; media-type=&quot;application/x-dtbncx+xml&quot; /&gt;</span>
+<span class="si">%(files)s</span><span class="s"></span>
+<span class="s">  &lt;/manifest&gt;</span>
+<span class="s">  &lt;spine toc=&quot;ncx&quot;&gt;</span>
+<span class="si">%(spine)s</span><span class="s"></span>
+<span class="s">  &lt;/spine&gt;</span>
+<span class="s">  &lt;guide&gt;</span>
+<span class="si">%(guide)s</span><span class="s"></span>
+<span class="s">  &lt;/guide&gt;</span>
+<span class="s">&lt;/package&gt;</span>
+<span class="s">&#39;&#39;&#39;</span>
+
+<span class="n">_cover_template</span> <span class="o">=</span> <span class="s">u&#39;&#39;&#39;</span><span class="se">\</span>
+<span class="s">    &lt;meta name=&quot;cover&quot; content=&quot;</span><span class="si">%(cover)s</span><span class="s">&quot;/&gt;</span>
+<span class="s">&#39;&#39;&#39;</span>
+
+<span class="n">_coverpage_name</span> <span class="o">=</span> <span class="s">u&#39;epub-cover.html&#39;</span>
+
+<span class="n">_file_template</span> <span class="o">=</span> <span class="s">u&#39;&#39;&#39;</span><span class="se">\</span>
+<span class="s">    &lt;item id=&quot;</span><span class="si">%(id)s</span><span class="s">&quot;</span>
+<span class="s">          href=&quot;</span><span class="si">%(href)s</span><span class="s">&quot;</span>
+<span class="s">          media-type=&quot;</span><span class="si">%(media_type)s</span><span class="s">&quot; /&gt;&#39;&#39;&#39;</span>
+
+<span class="n">_spine_template</span> <span class="o">=</span> <span class="s">u&#39;&#39;&#39;</span><span class="se">\</span>
+<span class="s">    &lt;itemref idref=&quot;</span><span class="si">%(idref)s</span><span class="s">&quot; /&gt;&#39;&#39;&#39;</span>
+
+<span class="n">_guide_template</span> <span class="o">=</span> <span class="s">u&#39;&#39;&#39;</span><span class="se">\</span>
+<span class="s">    &lt;reference type=&quot;</span><span class="si">%(type)s</span><span class="s">&quot; title=&quot;</span><span class="si">%(title)s</span><span class="s">&quot; href=&quot;</span><span class="si">%(uri)s</span><span class="s">&quot; /&gt;&#39;&#39;&#39;</span>
+
+<span class="n">_toctree_template</span> <span class="o">=</span> <span class="s">u&#39;toctree-l</span><span class="si">%d</span><span class="s">&#39;</span>
+
+<span class="n">_link_target_template</span> <span class="o">=</span> <span class="s">u&#39; [</span><span class="si">%(uri)s</span><span class="s">]&#39;</span>
+
+<span class="n">_footnote_label_template</span> <span class="o">=</span> <span class="s">u&#39;#</span><span class="si">%d</span><span class="s">&#39;</span>
+
+<span class="n">_footnotes_rubric_name</span> <span class="o">=</span> <span class="s">u&#39;Footnotes&#39;</span>
+
+<span class="n">_css_link_target_class</span> <span class="o">=</span> <span class="s">u&#39;link-target&#39;</span>
+
+<span class="c"># XXX These strings should be localized according to epub_language</span>
+<span class="n">_guide_titles</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s">&#39;toc&#39;</span><span class="p">:</span> <span class="s">u&#39;Table of Contents&#39;</span><span class="p">,</span>
+    <span class="s">&#39;cover&#39;</span><span class="p">:</span> <span class="s">u&#39;Cover&#39;</span>
+<span class="p">}</span>
+
+<span class="n">_media_types</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s">&#39;.html&#39;</span><span class="p">:</span> <span class="s">&#39;application/xhtml+xml&#39;</span><span class="p">,</span>
+    <span class="s">&#39;.css&#39;</span><span class="p">:</span> <span class="s">&#39;text/css&#39;</span><span class="p">,</span>
+    <span class="s">&#39;.png&#39;</span><span class="p">:</span> <span class="s">&#39;image/png&#39;</span><span class="p">,</span>
+    <span class="s">&#39;.gif&#39;</span><span class="p">:</span> <span class="s">&#39;image/gif&#39;</span><span class="p">,</span>
+    <span class="s">&#39;.svg&#39;</span><span class="p">:</span> <span class="s">&#39;image/svg+xml&#39;</span><span class="p">,</span>
+    <span class="s">&#39;.jpg&#39;</span><span class="p">:</span> <span class="s">&#39;image/jpeg&#39;</span><span class="p">,</span>
+    <span class="s">&#39;.jpeg&#39;</span><span class="p">:</span> <span class="s">&#39;image/jpeg&#39;</span><span class="p">,</span>
+    <span class="s">&#39;.otf&#39;</span><span class="p">:</span> <span class="s">&#39;application/x-font-otf&#39;</span><span class="p">,</span>
+    <span class="s">&#39;.ttf&#39;</span><span class="p">:</span> <span class="s">&#39;application/x-font-ttf&#39;</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="n">_vector_graphics_extensions</span> <span class="o">=</span> <span class="p">(</span><span class="s">&#39;.svg&#39;</span><span class="p">,)</span>
+
+<span class="c"># Regular expression to match colons only in local fragment identifiers.</span>
+<span class="c"># If the URI contains a colon before the #,</span>
+<span class="c"># it is an external link that should not change.</span>
+<span class="n">_refuri_re</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s">&quot;([^#:]*#)(.*)&quot;</span><span class="p">)</span>
+
+
+<span class="c"># The epub publisher</span>
+
+<div class="viewcode-block" id="EpubBuilder"><a class="viewcode-back" href="../../../build/Sphinx/doc/builders.html#sphinx.builders.epub.EpubBuilder">[docs]</a><span class="k">class</span> <span class="nc">EpubBuilder</span><span class="p">(</span><span class="n">StandaloneHTMLBuilder</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Builder that outputs epub files.</span>
+
+<span class="sd">    It creates the metainfo files container.opf, toc.ncx, mimetype, and</span>
+<span class="sd">    META-INF/container.xml.  Afterwards, all necessary files are zipped to an</span>
+<span class="sd">    epub file.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="s">&#39;epub&#39;</span>
+
+    <span class="c"># don&#39;t copy the reST source</span>
+    <span class="n">copysource</span> <span class="o">=</span> <span class="bp">False</span>
+    <span class="n">supported_image_types</span> <span class="o">=</span> <span class="p">[</span><span class="s">&#39;image/svg+xml&#39;</span><span class="p">,</span> <span class="s">&#39;image/png&#39;</span><span class="p">,</span> <span class="s">&#39;image/gif&#39;</span><span class="p">,</span>
+                             <span class="s">&#39;image/jpeg&#39;</span><span class="p">]</span>
+
+    <span class="c"># don&#39;t add links</span>
+    <span class="n">add_permalinks</span> <span class="o">=</span> <span class="bp">False</span>
+    <span class="c"># don&#39;t add sidebar etc.</span>
+    <span class="n">embedded</span> <span class="o">=</span> <span class="bp">True</span>
+
+    <span class="k">def</span> <span class="nf">init</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">StandaloneHTMLBuilder</span><span class="o">.</span><span class="n">init</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="c"># the output files for epub must be .html only</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">out_suffix</span> <span class="o">=</span> <span class="s">&#39;.html&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">playorder</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tocid</span> <span class="o">=</span> <span class="mi">0</span>
+
+    <span class="k">def</span> <span class="nf">get_theme_config</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">epub_theme</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">epub_theme_options</span>
+
+    <span class="c"># generic support functions</span>
+    <span class="k">def</span> <span class="nf">make_id</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">id_cache</span><span class="o">=</span><span class="p">{}):</span>
+        <span class="c"># id_cache is intentionally mutable</span>
+        <span class="sd">&quot;&quot;&quot;Return a unique id for name.&quot;&quot;&quot;</span>
+        <span class="nb">id</span> <span class="o">=</span> <span class="n">id_cache</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">id</span><span class="p">:</span>
+            <span class="nb">id</span> <span class="o">=</span> <span class="s">&#39;epub-</span><span class="si">%d</span><span class="s">&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">new_serialno</span><span class="p">(</span><span class="s">&#39;epub&#39;</span><span class="p">)</span>
+            <span class="n">id_cache</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="nb">id</span>
+        <span class="k">return</span> <span class="nb">id</span>
+
+    <span class="k">def</span> <span class="nf">esc</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Replace all characters not allowed in text an attribute values.&quot;&quot;&quot;</span>
+        <span class="c"># Like cgi.escape, but also replace apostrophe</span>
+        <span class="n">name</span> <span class="o">=</span> <span class="n">name</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s">&#39;&amp;&#39;</span><span class="p">,</span> <span class="s">&#39;&amp;amp;&#39;</span><span class="p">)</span>
+        <span class="n">name</span> <span class="o">=</span> <span class="n">name</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s">&#39;&lt;&#39;</span><span class="p">,</span> <span class="s">&#39;&amp;lt;&#39;</span><span class="p">)</span>
+        <span class="n">name</span> <span class="o">=</span> <span class="n">name</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s">&#39;&gt;&#39;</span><span class="p">,</span> <span class="s">&#39;&amp;gt;&#39;</span><span class="p">)</span>
+        <span class="n">name</span> <span class="o">=</span> <span class="n">name</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s">&#39;&quot;&#39;</span><span class="p">,</span> <span class="s">&#39;&amp;quot;&#39;</span><span class="p">)</span>
+        <span class="n">name</span> <span class="o">=</span> <span class="n">name</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s">&#39;</span><span class="se">\&#39;</span><span class="s">&#39;</span><span class="p">,</span> <span class="s">&#39;&amp;#39;&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">name</span>
+
+    <span class="k">def</span> <span class="nf">get_refnodes</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">doctree</span><span class="p">,</span> <span class="n">result</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Collect section titles, their depth in the toc and the refuri.&quot;&quot;&quot;</span>
+        <span class="c"># XXX: is there a better way than checking the attribute</span>
+        <span class="c"># toctree-l[1-8] on the parent node?</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">doctree</span><span class="p">,</span> <span class="n">nodes</span><span class="o">.</span><span class="n">reference</span><span class="p">)</span> <span class="ow">and</span> <span class="n">doctree</span><span class="o">.</span><span class="n">has_key</span><span class="p">(</span><span class="s">&#39;refuri&#39;</span><span class="p">):</span>
+            <span class="n">refuri</span> <span class="o">=</span> <span class="n">doctree</span><span class="p">[</span><span class="s">&#39;refuri&#39;</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">refuri</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s">&#39;http://&#39;</span><span class="p">)</span> <span class="ow">or</span> <span class="n">refuri</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s">&#39;https://&#39;</span><span class="p">)</span> \
+                <span class="ow">or</span> <span class="n">refuri</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s">&#39;irc:&#39;</span><span class="p">)</span> <span class="ow">or</span> <span class="n">refuri</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s">&#39;mailto:&#39;</span><span class="p">):</span>
+                <span class="k">return</span> <span class="n">result</span>
+            <span class="n">classes</span> <span class="o">=</span> <span class="n">doctree</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">attributes</span><span class="p">[</span><span class="s">&#39;classes&#39;</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">level</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">):</span> <span class="c"># or range(1, 8)?</span>
+                <span class="k">if</span> <span class="p">(</span><span class="n">_toctree_template</span> <span class="o">%</span> <span class="n">level</span><span class="p">)</span> <span class="ow">in</span> <span class="n">classes</span><span class="p">:</span>
+                    <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">({</span>
+                        <span class="s">&#39;level&#39;</span><span class="p">:</span> <span class="n">level</span><span class="p">,</span>
+                        <span class="s">&#39;refuri&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">esc</span><span class="p">(</span><span class="n">refuri</span><span class="p">),</span>
+                        <span class="s">&#39;text&#39;</span><span class="p">:</span> <span class="n">ssp</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">esc</span><span class="p">(</span><span class="n">doctree</span><span class="o">.</span><span class="n">astext</span><span class="p">()))</span>
+                    <span class="p">})</span>
+                    <span class="k">break</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">elem</span> <span class="ow">in</span> <span class="n">doctree</span><span class="o">.</span><span class="n">children</span><span class="p">:</span>
+                <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_refnodes</span><span class="p">(</span><span class="n">elem</span><span class="p">,</span> <span class="n">result</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">result</span>
+
+    <span class="k">def</span> <span class="nf">get_toc</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get the total table of contents, containing the master_doc</span>
+<span class="sd">        and pre and post files not managed by sphinx.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">doctree</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">get_and_resolve_doctree</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">master_doc</span><span class="p">,</span>
+            <span class="bp">self</span><span class="p">,</span> <span class="n">prune_toctrees</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">includehidden</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">refnodes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_refnodes</span><span class="p">(</span><span class="n">doctree</span><span class="p">,</span> <span class="p">[])</span>
+        <span class="n">master_dir</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">master_doc</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">master_dir</span><span class="p">:</span>
+            <span class="n">master_dir</span> <span class="o">+=</span> <span class="s">&#39;/&#39;</span> <span class="c"># XXX or os.sep?</span>
+            <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">refnodes</span><span class="p">:</span>
+                <span class="n">item</span><span class="p">[</span><span class="s">&#39;refuri&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">master_dir</span> <span class="o">+</span> <span class="n">item</span><span class="p">[</span><span class="s">&#39;refuri&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">toc_add_files</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">refnodes</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">toc_add_files</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">refnodes</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Add the master_doc, pre and post files to a list of refnodes.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">refnodes</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="p">{</span>
+            <span class="s">&#39;level&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+            <span class="s">&#39;refuri&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">esc</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">master_doc</span> <span class="o">+</span> <span class="s">&#39;.html&#39;</span><span class="p">),</span>
+            <span class="s">&#39;text&#39;</span><span class="p">:</span> <span class="n">ssp</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">esc</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">titles</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">master_doc</span><span class="p">]</span><span class="o">.</span><span class="n">astext</span><span class="p">()))</span>
+        <span class="p">})</span>
+        <span class="k">for</span> <span class="nb">file</span><span class="p">,</span> <span class="n">text</span> <span class="ow">in</span> <span class="nb">reversed</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">epub_pre_files</span><span class="p">):</span>
+            <span class="n">refnodes</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="p">{</span>
+                <span class="s">&#39;level&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+                <span class="s">&#39;refuri&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">esc</span><span class="p">(</span><span class="nb">file</span><span class="p">),</span>
+                <span class="s">&#39;text&#39;</span><span class="p">:</span> <span class="n">ssp</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">esc</span><span class="p">(</span><span class="n">text</span><span class="p">))</span>
+            <span class="p">})</span>
+        <span class="k">for</span> <span class="nb">file</span><span class="p">,</span> <span class="n">text</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">epub_post_files</span><span class="p">:</span>
+            <span class="n">refnodes</span><span class="o">.</span><span class="n">append</span><span class="p">({</span>
+                <span class="s">&#39;level&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+                <span class="s">&#39;refuri&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">esc</span><span class="p">(</span><span class="nb">file</span><span class="p">),</span>
+                <span class="s">&#39;text&#39;</span><span class="p">:</span> <span class="n">ssp</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">esc</span><span class="p">(</span><span class="n">text</span><span class="p">))</span>
+            <span class="p">})</span>
+
+    <span class="k">def</span> <span class="nf">fix_fragment</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">prefix</span><span class="p">,</span> <span class="n">fragment</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Return a href/id attribute with colons replaced by hyphens.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">prefix</span> <span class="o">+</span> <span class="n">fragment</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s">&#39;:&#39;</span><span class="p">,</span> <span class="s">&#39;-&#39;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">fix_ids</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tree</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Replace colons with hyphens in href and id attributes.</span>
+
+<span class="sd">        Some readers crash because they interpret the part as a</span>
+<span class="sd">        transport protocol specification.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">tree</span><span class="o">.</span><span class="n">traverse</span><span class="p">(</span><span class="n">nodes</span><span class="o">.</span><span class="n">reference</span><span class="p">):</span>
+            <span class="k">if</span> <span class="s">&#39;refuri&#39;</span> <span class="ow">in</span> <span class="n">node</span><span class="p">:</span>
+                <span class="n">m</span> <span class="o">=</span> <span class="n">_refuri_re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">node</span><span class="p">[</span><span class="s">&#39;refuri&#39;</span><span class="p">])</span>
+                <span class="k">if</span> <span class="n">m</span><span class="p">:</span>
+                    <span class="n">node</span><span class="p">[</span><span class="s">&#39;refuri&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">fix_fragment</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">),</span> <span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">2</span><span class="p">))</span>
+            <span class="k">if</span> <span class="s">&#39;refid&#39;</span> <span class="ow">in</span> <span class="n">node</span><span class="p">:</span>
+                <span class="n">node</span><span class="p">[</span><span class="s">&#39;refid&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">fix_fragment</span><span class="p">(</span><span class="s">&#39;&#39;</span><span class="p">,</span> <span class="n">node</span><span class="p">[</span><span class="s">&#39;refid&#39;</span><span class="p">])</span>
+        <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">tree</span><span class="o">.</span><span class="n">traverse</span><span class="p">(</span><span class="n">addnodes</span><span class="o">.</span><span class="n">desc_signature</span><span class="p">):</span>
+            <span class="n">ids</span> <span class="o">=</span> <span class="n">node</span><span class="o">.</span><span class="n">attributes</span><span class="p">[</span><span class="s">&#39;ids&#39;</span><span class="p">]</span>
+            <span class="n">newids</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="nb">id</span> <span class="ow">in</span> <span class="n">ids</span><span class="p">:</span>
+                <span class="n">newids</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">fix_fragment</span><span class="p">(</span><span class="s">&#39;&#39;</span><span class="p">,</span> <span class="nb">id</span><span class="p">))</span>
+            <span class="n">node</span><span class="o">.</span><span class="n">attributes</span><span class="p">[</span><span class="s">&#39;ids&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">newids</span>
+
+    <span class="k">def</span> <span class="nf">add_visible_links</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tree</span><span class="p">,</span> <span class="n">show_urls</span><span class="o">=</span><span class="s">&#39;inline&#39;</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Add visible link targets for external links&quot;&quot;&quot;</span>
+
+        <span class="k">def</span> <span class="nf">make_footnote_ref</span><span class="p">(</span><span class="n">doc</span><span class="p">,</span> <span class="n">label</span><span class="p">):</span>
+            <span class="sd">&quot;&quot;&quot;Create a footnote_reference node with children&quot;&quot;&quot;</span>
+            <span class="n">footnote_ref</span> <span class="o">=</span> <span class="n">nodes</span><span class="o">.</span><span class="n">footnote_reference</span><span class="p">(</span><span class="s">&#39;[#]_&#39;</span><span class="p">)</span>
+            <span class="n">footnote_ref</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">nodes</span><span class="o">.</span><span class="n">Text</span><span class="p">(</span><span class="n">label</span><span class="p">))</span>
+            <span class="n">doc</span><span class="o">.</span><span class="n">note_autofootnote_ref</span><span class="p">(</span><span class="n">footnote_ref</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">footnote_ref</span>
+
+        <span class="k">def</span> <span class="nf">make_footnote</span><span class="p">(</span><span class="n">doc</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="n">uri</span><span class="p">):</span>
+            <span class="sd">&quot;&quot;&quot;Create a footnote node with children&quot;&quot;&quot;</span>
+            <span class="n">footnote</span> <span class="o">=</span> <span class="n">nodes</span><span class="o">.</span><span class="n">footnote</span><span class="p">(</span><span class="n">uri</span><span class="p">)</span>
+            <span class="n">para</span> <span class="o">=</span> <span class="n">nodes</span><span class="o">.</span><span class="n">paragraph</span><span class="p">()</span>
+            <span class="n">para</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">nodes</span><span class="o">.</span><span class="n">Text</span><span class="p">(</span><span class="n">uri</span><span class="p">))</span>
+            <span class="n">footnote</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">para</span><span class="p">)</span>
+            <span class="n">footnote</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">nodes</span><span class="o">.</span><span class="n">label</span><span class="p">(</span><span class="s">&#39;&#39;</span><span class="p">,</span> <span class="n">label</span><span class="p">))</span>
+            <span class="n">doc</span><span class="o">.</span><span class="n">note_autofootnote</span><span class="p">(</span><span class="n">footnote</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">footnote</span>
+
+        <span class="k">def</span> <span class="nf">footnote_spot</span><span class="p">(</span><span class="n">tree</span><span class="p">):</span>
+            <span class="sd">&quot;&quot;&quot;Find or create a spot to place footnotes.</span>
+
+<span class="sd">            The function returns the tuple (parent, index).&quot;&quot;&quot;</span>
+            <span class="c"># The code uses the following heuristic:</span>
+            <span class="c"># a) place them after the last existing footnote</span>
+            <span class="c"># b) place them after an (empty) Footnotes rubric</span>
+            <span class="c"># c) create an empty Footnotes rubric at the end of the document</span>
+            <span class="n">fns</span> <span class="o">=</span> <span class="n">tree</span><span class="o">.</span><span class="n">traverse</span><span class="p">(</span><span class="n">nodes</span><span class="o">.</span><span class="n">footnote</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">fns</span><span class="p">:</span>
+                <span class="n">fn</span> <span class="o">=</span> <span class="n">fns</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+                <span class="k">return</span> <span class="n">fn</span><span class="o">.</span><span class="n">parent</span><span class="p">,</span> <span class="n">fn</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">fn</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span>
+            <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">tree</span><span class="o">.</span><span class="n">traverse</span><span class="p">(</span><span class="n">nodes</span><span class="o">.</span><span class="n">rubric</span><span class="p">):</span>
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">children</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span> <span class="ow">and</span> \
+                        <span class="n">node</span><span class="o">.</span><span class="n">children</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">astext</span><span class="p">()</span> <span class="o">==</span> <span class="n">_footnotes_rubric_name</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="n">node</span><span class="o">.</span><span class="n">parent</span><span class="p">,</span> <span class="n">node</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">node</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span>
+            <span class="n">doc</span> <span class="o">=</span> <span class="n">tree</span><span class="o">.</span><span class="n">traverse</span><span class="p">(</span><span class="n">nodes</span><span class="o">.</span><span class="n">document</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">rub</span> <span class="o">=</span> <span class="n">nodes</span><span class="o">.</span><span class="n">rubric</span><span class="p">()</span>
+            <span class="n">rub</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">nodes</span><span class="o">.</span><span class="n">Text</span><span class="p">(</span><span class="n">_footnotes_rubric_name</span><span class="p">))</span>
+            <span class="n">doc</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">rub</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">doc</span><span class="p">,</span> <span class="n">doc</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">rub</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span>
+
+        <span class="k">if</span> <span class="n">show_urls</span> <span class="o">==</span> <span class="s">&#39;no&#39;</span><span class="p">:</span>
+            <span class="k">return</span>
+        <span class="k">if</span> <span class="n">show_urls</span> <span class="o">==</span> <span class="s">&#39;footnote&#39;</span><span class="p">:</span>
+            <span class="n">doc</span> <span class="o">=</span> <span class="n">tree</span><span class="o">.</span><span class="n">traverse</span><span class="p">(</span><span class="n">nodes</span><span class="o">.</span><span class="n">document</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">fn_spot</span><span class="p">,</span> <span class="n">fn_idx</span> <span class="o">=</span> <span class="n">footnote_spot</span><span class="p">(</span><span class="n">tree</span><span class="p">)</span>
+            <span class="n">nr</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">tree</span><span class="o">.</span><span class="n">traverse</span><span class="p">(</span><span class="n">nodes</span><span class="o">.</span><span class="n">reference</span><span class="p">):</span>
+            <span class="n">uri</span> <span class="o">=</span> <span class="n">node</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;refuri&#39;</span><span class="p">,</span> <span class="s">&#39;&#39;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">uri</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s">&#39;http:&#39;</span><span class="p">)</span> <span class="ow">or</span> <span class="n">uri</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s">&#39;https:&#39;</span><span class="p">)</span> <span class="ow">or</span>
+                    <span class="n">uri</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s">&#39;ftp:&#39;</span><span class="p">))</span> <span class="ow">and</span> <span class="n">uri</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">astext</span><span class="p">():</span>
+                <span class="n">idx</span> <span class="o">=</span> <span class="n">node</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">node</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span>
+                <span class="k">if</span> <span class="n">show_urls</span> <span class="o">==</span> <span class="s">&#39;inline&#39;</span><span class="p">:</span>
+                    <span class="n">uri</span> <span class="o">=</span> <span class="n">_link_target_template</span> <span class="o">%</span> <span class="p">{</span><span class="s">&#39;uri&#39;</span><span class="p">:</span> <span class="n">uri</span><span class="p">}</span>
+                    <span class="n">link</span> <span class="o">=</span> <span class="n">nodes</span><span class="o">.</span><span class="n">inline</span><span class="p">(</span><span class="n">uri</span><span class="p">,</span> <span class="n">uri</span><span class="p">)</span>
+                    <span class="n">link</span><span class="p">[</span><span class="s">&#39;classes&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">_css_link_target_class</span><span class="p">)</span>
+                    <span class="n">node</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="n">idx</span><span class="p">,</span> <span class="n">link</span><span class="p">)</span>
+                <span class="k">elif</span> <span class="n">show_urls</span> <span class="o">==</span> <span class="s">&#39;footnote&#39;</span><span class="p">:</span>
+                    <span class="n">label</span> <span class="o">=</span> <span class="n">_footnote_label_template</span> <span class="o">%</span> <span class="n">nr</span>
+                    <span class="n">nr</span> <span class="o">+=</span> <span class="mi">1</span>
+                    <span class="n">footnote_ref</span> <span class="o">=</span> <span class="n">make_footnote_ref</span><span class="p">(</span><span class="n">doc</span><span class="p">,</span> <span class="n">label</span><span class="p">)</span>
+                    <span class="n">node</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="n">idx</span><span class="p">,</span> <span class="n">footnote_ref</span><span class="p">)</span>
+                    <span class="n">footnote</span> <span class="o">=</span> <span class="n">make_footnote</span><span class="p">(</span><span class="n">doc</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="n">uri</span><span class="p">)</span>
+                    <span class="n">fn_spot</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="n">fn_idx</span><span class="p">,</span> <span class="n">footnote</span><span class="p">)</span>
+                    <span class="n">footnote_ref</span><span class="p">[</span><span class="s">&#39;refid&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">footnote</span><span class="p">[</span><span class="s">&#39;ids&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+                    <span class="n">footnote</span><span class="o">.</span><span class="n">add_backref</span><span class="p">(</span><span class="n">footnote_ref</span><span class="p">[</span><span class="s">&#39;ids&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">])</span>
+                    <span class="n">fn_idx</span> <span class="o">+=</span> <span class="mi">1</span>
+
+    <span class="k">def</span> <span class="nf">write_doc</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">docname</span><span class="p">,</span> <span class="n">doctree</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Write one document file.</span>
+
+<span class="sd">        This method is overwritten in order to fix fragment identifiers</span>
+<span class="sd">        and to add visible external links.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">fix_ids</span><span class="p">(</span><span class="n">doctree</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_visible_links</span><span class="p">(</span><span class="n">doctree</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">epub_show_urls</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">StandaloneHTMLBuilder</span><span class="o">.</span><span class="n">write_doc</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">docname</span><span class="p">,</span> <span class="n">doctree</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">fix_genindex</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tree</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Fix href attributes for genindex pages.&quot;&quot;&quot;</span>
+        <span class="c"># XXX: modifies tree inline</span>
+        <span class="c"># Logic modeled from themes/basic/genindex.html</span>
+        <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">columns</span> <span class="ow">in</span> <span class="n">tree</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">entryname</span><span class="p">,</span> <span class="p">(</span><span class="n">links</span><span class="p">,</span> <span class="n">subitems</span><span class="p">)</span> <span class="ow">in</span> <span class="n">columns</span><span class="p">:</span>
+                <span class="k">for</span> <span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">ismain</span><span class="p">,</span> <span class="n">link</span><span class="p">))</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">links</span><span class="p">):</span>
+                    <span class="n">m</span> <span class="o">=</span> <span class="n">_refuri_re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">link</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="n">m</span><span class="p">:</span>
+                        <span class="n">links</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">ismain</span><span class="p">,</span>
+                                    <span class="bp">self</span><span class="o">.</span><span class="n">fix_fragment</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">),</span> <span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">2</span><span class="p">)))</span>
+                <span class="k">for</span> <span class="n">subentryname</span><span class="p">,</span> <span class="n">subentrylinks</span> <span class="ow">in</span> <span class="n">subitems</span><span class="p">:</span>
+                    <span class="k">for</span> <span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">ismain</span><span class="p">,</span> <span class="n">link</span><span class="p">))</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">subentrylinks</span><span class="p">):</span>
+                        <span class="n">m</span> <span class="o">=</span> <span class="n">_refuri_re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">link</span><span class="p">)</span>
+                        <span class="k">if</span> <span class="n">m</span><span class="p">:</span>
+                            <span class="n">subentrylinks</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">ismain</span><span class="p">,</span>
+                                <span class="bp">self</span><span class="o">.</span><span class="n">fix_fragment</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">),</span> <span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">2</span><span class="p">)))</span>
+
+    <span class="k">def</span> <span class="nf">is_vector_graphics</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filename</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Does the filename extension indicate a vector graphic format?&quot;&quot;&quot;</span>
+        <span class="n">ext</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">splitext</span><span class="p">(</span><span class="n">filename</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">ext</span> <span class="ow">in</span> <span class="n">_vector_graphics_extensions</span>
+
+    <span class="k">def</span> <span class="nf">copy_image_files_pil</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Copy images using the PIL.</span>
+<span class="sd">        The method tries to read and write the files with the PIL,</span>
+<span class="sd">        converting the format and resizing the image if necessary/possible.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">ensuredir</span><span class="p">(</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">outdir</span><span class="p">,</span> <span class="s">&#39;_images&#39;</span><span class="p">))</span>
+        <span class="k">for</span> <span class="n">src</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">status_iterator</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">images</span><span class="p">,</span> <span class="s">&#39;copying images... &#39;</span><span class="p">,</span>
+                                        <span class="n">brown</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">images</span><span class="p">)):</span>
+            <span class="n">dest</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">images</span><span class="p">[</span><span class="n">src</span><span class="p">]</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">img</span> <span class="o">=</span> <span class="n">Image</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">srcdir</span><span class="p">,</span> <span class="n">src</span><span class="p">))</span>
+            <span class="k">except</span> <span class="ne">IOError</span><span class="p">:</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_vector_graphics</span><span class="p">(</span><span class="n">src</span><span class="p">):</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s">&#39;cannot read image file </span><span class="si">%r</span><span class="s">: copying it instead&#39;</span> <span class="o">%</span>
+                              <span class="p">(</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">srcdir</span><span class="p">,</span> <span class="n">src</span><span class="p">),</span> <span class="p">))</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">copyfile</span><span class="p">(</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">srcdir</span><span class="p">,</span> <span class="n">src</span><span class="p">),</span>
+                             <span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">outdir</span><span class="p">,</span> <span class="s">&#39;_images&#39;</span><span class="p">,</span> <span class="n">dest</span><span class="p">))</span>
+                <span class="k">except</span> <span class="p">(</span><span class="ne">IOError</span><span class="p">,</span> <span class="ne">OSError</span><span class="p">),</span> <span class="n">err</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s">&#39;cannot copy image file </span><span class="si">%r</span><span class="s">: </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span>
+                              <span class="p">(</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">srcdir</span><span class="p">,</span> <span class="n">src</span><span class="p">),</span> <span class="n">err</span><span class="p">))</span>
+                <span class="k">continue</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">epub_fix_images</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">img</span><span class="o">.</span><span class="n">mode</span> <span class="ow">in</span> <span class="p">(</span><span class="s">&#39;P&#39;</span><span class="p">,):</span>
+                    <span class="c"># See PIL documentation for Image.convert()</span>
+                    <span class="n">img</span> <span class="o">=</span> <span class="n">img</span><span class="o">.</span><span class="n">convert</span><span class="p">()</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">epub_max_image_width</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="p">(</span><span class="n">width</span><span class="p">,</span> <span class="n">height</span><span class="p">)</span> <span class="o">=</span> <span class="n">img</span><span class="o">.</span><span class="n">size</span>
+                <span class="n">nw</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">epub_max_image_width</span>
+                <span class="k">if</span> <span class="n">width</span> <span class="o">&gt;</span> <span class="n">nw</span><span class="p">:</span>
+                    <span class="n">nh</span> <span class="o">=</span> <span class="p">(</span><span class="n">height</span> <span class="o">*</span> <span class="n">nw</span><span class="p">)</span> <span class="o">/</span> <span class="n">width</span>
+                    <span class="n">img</span> <span class="o">=</span> <span class="n">img</span><span class="o">.</span><span class="n">resize</span><span class="p">((</span><span class="n">nw</span><span class="p">,</span> <span class="n">nh</span><span class="p">),</span> <span class="n">Image</span><span class="o">.</span><span class="n">BICUBIC</span><span class="p">)</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">img</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">outdir</span><span class="p">,</span> <span class="s">&#39;_images&#39;</span><span class="p">,</span> <span class="n">dest</span><span class="p">))</span>
+            <span class="k">except</span> <span class="p">(</span><span class="ne">IOError</span><span class="p">,</span> <span class="ne">OSError</span><span class="p">),</span> <span class="n">err</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s">&#39;cannot write image file </span><span class="si">%r</span><span class="s">: </span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span>
+                          <span class="p">(</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">srcdir</span><span class="p">,</span> <span class="n">src</span><span class="p">),</span> <span class="n">err</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">copy_image_files</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Copy image files to destination directory.</span>
+<span class="sd">        This overwritten method can use the PIL to convert image files.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">images</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">epub_fix_images</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">epub_max_image_width</span><span class="p">:</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">Image</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s">&#39;PIL not found - copying image files&#39;</span><span class="p">)</span>
+                    <span class="nb">super</span><span class="p">(</span><span class="n">EpubBuilder</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">copy_image_files</span><span class="p">()</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">copy_image_files_pil</span><span class="p">()</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="nb">super</span><span class="p">(</span><span class="n">EpubBuilder</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">copy_image_files</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">handle_page</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pagename</span><span class="p">,</span> <span class="n">addctx</span><span class="p">,</span> <span class="n">templatename</span><span class="o">=</span><span class="s">&#39;page.html&#39;</span><span class="p">,</span>
+                    <span class="n">outfilename</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">event_arg</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Create a rendered page.</span>
+
+<span class="sd">        This method is overwritten for genindex pages in order to fix href link</span>
+<span class="sd">        attributes.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">pagename</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s">&#39;genindex&#39;</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">fix_genindex</span><span class="p">(</span><span class="n">addctx</span><span class="p">[</span><span class="s">&#39;genindexentries&#39;</span><span class="p">])</span>
+        <span class="n">StandaloneHTMLBuilder</span><span class="o">.</span><span class="n">handle_page</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pagename</span><span class="p">,</span> <span class="n">addctx</span><span class="p">,</span> <span class="n">templatename</span><span class="p">,</span>
+            <span class="n">outfilename</span><span class="p">,</span> <span class="n">event_arg</span><span class="p">)</span>
+
+
+    <span class="c"># Finish by building the epub file</span>
+    <span class="k">def</span> <span class="nf">handle_finish</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Create the metainfo files and finally the epub.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">get_toc</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">build_mimetype</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">outdir</span><span class="p">,</span> <span class="s">&#39;mimetype&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">build_container</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">outdir</span><span class="p">,</span> <span class="s">&#39;META-INF/container.xml&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">build_content</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">outdir</span><span class="p">,</span> <span class="s">&#39;content.opf&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">build_toc</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">outdir</span><span class="p">,</span> <span class="s">&#39;toc.ncx&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">build_epub</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">outdir</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">epub_basename</span> <span class="o">+</span> <span class="s">&#39;.epub&#39;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">build_mimetype</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">outdir</span><span class="p">,</span> <span class="n">outname</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Write the metainfo file mimetype.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&#39;writing </span><span class="si">%s</span><span class="s"> file...&#39;</span> <span class="o">%</span> <span class="n">outname</span><span class="p">)</span>
+        <span class="n">f</span> <span class="o">=</span> <span class="n">codecs</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="n">outname</span><span class="p">),</span> <span class="s">&#39;w&#39;</span><span class="p">,</span> <span class="s">&#39;utf-8&#39;</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">_mimetype_template</span><span class="p">)</span>
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">build_container</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">outdir</span><span class="p">,</span> <span class="n">outname</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Write the metainfo file META-INF/cointainer.xml.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&#39;writing </span><span class="si">%s</span><span class="s"> file...&#39;</span> <span class="o">%</span> <span class="n">outname</span><span class="p">)</span>
+        <span class="n">fn</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="n">outname</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">fn</span><span class="p">))</span>
+        <span class="k">except</span> <span class="ne">OSError</span><span class="p">,</span> <span class="n">err</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">err</span><span class="o">.</span><span class="n">errno</span> <span class="o">!=</span> <span class="n">EEXIST</span><span class="p">:</span>
+                <span class="k">raise</span>
+        <span class="n">f</span> <span class="o">=</span> <span class="n">codecs</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="n">outname</span><span class="p">),</span> <span class="s">&#39;w&#39;</span><span class="p">,</span> <span class="s">&#39;utf-8&#39;</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">_container_template</span><span class="p">)</span>
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">content_metadata</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">files</span><span class="p">,</span> <span class="n">spine</span><span class="p">,</span> <span class="n">guide</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Create a dictionary with all metadata for the content.opf</span>
+<span class="sd">        file properly escaped.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">metadata</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">metadata</span><span class="p">[</span><span class="s">&#39;title&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">esc</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">epub_title</span><span class="p">)</span>
+        <span class="n">metadata</span><span class="p">[</span><span class="s">&#39;author&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">esc</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">epub_author</span><span class="p">)</span>
+        <span class="n">metadata</span><span class="p">[</span><span class="s">&#39;uid&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">esc</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">epub_uid</span><span class="p">)</span>
+        <span class="n">metadata</span><span class="p">[</span><span class="s">&#39;lang&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">esc</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">epub_language</span><span class="p">)</span>
+        <span class="n">metadata</span><span class="p">[</span><span class="s">&#39;publisher&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">esc</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">epub_publisher</span><span class="p">)</span>
+        <span class="n">metadata</span><span class="p">[</span><span class="s">&#39;copyright&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">esc</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">epub_copyright</span><span class="p">)</span>
+        <span class="n">metadata</span><span class="p">[</span><span class="s">&#39;scheme&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">esc</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">epub_scheme</span><span class="p">)</span>
+        <span class="n">metadata</span><span class="p">[</span><span class="s">&#39;id&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">esc</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">epub_identifier</span><span class="p">)</span>
+        <span class="n">metadata</span><span class="p">[</span><span class="s">&#39;date&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">esc</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s">&#39;%Y-%m-</span><span class="si">%d</span><span class="s">&#39;</span><span class="p">))</span>
+        <span class="n">metadata</span><span class="p">[</span><span class="s">&#39;files&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">files</span>
+        <span class="n">metadata</span><span class="p">[</span><span class="s">&#39;spine&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">spine</span>
+        <span class="n">metadata</span><span class="p">[</span><span class="s">&#39;guide&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">guide</span>
+        <span class="k">return</span> <span class="n">metadata</span>
+
+    <span class="k">def</span> <span class="nf">build_content</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">outdir</span><span class="p">,</span> <span class="n">outname</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Write the metainfo file content.opf It contains bibliographic data,</span>
+<span class="sd">        a file list and the spine (the reading order).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&#39;writing </span><span class="si">%s</span><span class="s"> file...&#39;</span> <span class="o">%</span> <span class="n">outname</span><span class="p">)</span>
+
+        <span class="c"># files</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">outdir</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">sep</span><span class="p">):</span>
+            <span class="n">outdir</span> <span class="o">+=</span> <span class="n">os</span><span class="o">.</span><span class="n">sep</span>
+        <span class="n">olen</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">outdir</span><span class="p">)</span>
+        <span class="n">projectfiles</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">files</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ignored_files</span> <span class="o">=</span> <span class="p">[</span><span class="s">&#39;.buildinfo&#39;</span><span class="p">,</span>
+            <span class="s">&#39;mimetype&#39;</span><span class="p">,</span> <span class="s">&#39;content.opf&#39;</span><span class="p">,</span> <span class="s">&#39;toc.ncx&#39;</span><span class="p">,</span> <span class="s">&#39;META-INF/container.xml&#39;</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">epub_basename</span> <span class="o">+</span> <span class="s">&#39;.epub&#39;</span><span class="p">]</span> <span class="o">+</span> \
+            <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">epub_exclude_files</span>
+        <span class="k">for</span> <span class="n">root</span><span class="p">,</span> <span class="n">dirs</span><span class="p">,</span> <span class="n">files</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">walk</span><span class="p">(</span><span class="n">outdir</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">fn</span> <span class="ow">in</span> <span class="n">files</span><span class="p">:</span>
+                <span class="n">filename</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">root</span><span class="p">,</span> <span class="n">fn</span><span class="p">)[</span><span class="n">olen</span><span class="p">:]</span>
+                <span class="k">if</span> <span class="n">filename</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">ignored_files</span><span class="p">:</span>
+                    <span class="k">continue</span>
+                <span class="n">ext</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">splitext</span><span class="p">(</span><span class="n">filename</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+                <span class="k">if</span> <span class="n">ext</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">_media_types</span><span class="p">:</span>
+                    <span class="c"># we always have JS and potentially OpenSearch files, don&#39;t</span>
+                    <span class="c"># always warn about them</span>
+                    <span class="k">if</span> <span class="n">ext</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="s">&#39;.js&#39;</span><span class="p">,</span> <span class="s">&#39;.xml&#39;</span><span class="p">):</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s">&#39;unknown mimetype for </span><span class="si">%s</span><span class="s">, ignoring&#39;</span> <span class="o">%</span> <span class="n">filename</span><span class="p">)</span>
+                    <span class="k">continue</span>
+                <span class="n">filename</span> <span class="o">=</span> <span class="n">filename</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">sep</span><span class="p">,</span> <span class="s">&#39;/&#39;</span><span class="p">)</span>
+                <span class="n">projectfiles</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">_file_template</span> <span class="o">%</span> <span class="p">{</span>
+                    <span class="s">&#39;href&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">esc</span><span class="p">(</span><span class="n">filename</span><span class="p">),</span>
+                    <span class="s">&#39;id&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">esc</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">make_id</span><span class="p">(</span><span class="n">filename</span><span class="p">)),</span>
+                    <span class="s">&#39;media_type&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">esc</span><span class="p">(</span><span class="n">_media_types</span><span class="p">[</span><span class="n">ext</span><span class="p">])</span>
+                <span class="p">})</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">files</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
+
+        <span class="c"># spine</span>
+        <span class="n">spine</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">refnodes</span><span class="p">:</span>
+            <span class="k">if</span> <span class="s">&#39;#&#39;</span> <span class="ow">in</span> <span class="n">item</span><span class="p">[</span><span class="s">&#39;refuri&#39;</span><span class="p">]:</span>
+                <span class="k">continue</span>
+            <span class="k">if</span> <span class="n">item</span><span class="p">[</span><span class="s">&#39;refuri&#39;</span><span class="p">]</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">ignored_files</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="n">spine</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">_spine_template</span> <span class="o">%</span> <span class="p">{</span>
+                <span class="s">&#39;idref&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">esc</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">make_id</span><span class="p">(</span><span class="n">item</span><span class="p">[</span><span class="s">&#39;refuri&#39;</span><span class="p">]))</span>
+            <span class="p">})</span>
+        <span class="k">for</span> <span class="n">info</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">domain_indices</span><span class="p">:</span>
+            <span class="n">spine</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">_spine_template</span> <span class="o">%</span> <span class="p">{</span>
+                <span class="s">&#39;idref&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">esc</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">make_id</span><span class="p">(</span><span class="n">info</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">out_suffix</span><span class="p">))</span>
+            <span class="p">})</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_builder_config</span><span class="p">(</span><span class="s">&#39;use_index&#39;</span><span class="p">,</span> <span class="s">&#39;epub&#39;</span><span class="p">):</span>
+            <span class="n">spine</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">_spine_template</span> <span class="o">%</span> <span class="p">{</span>
+                <span class="s">&#39;idref&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">esc</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">make_id</span><span class="p">(</span><span class="s">&#39;genindex&#39;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">out_suffix</span><span class="p">))</span>
+            <span class="p">})</span>
+
+        <span class="c"># add the optional cover</span>
+        <span class="n">content_tmpl</span> <span class="o">=</span> <span class="n">_content_template</span>
+        <span class="n">html_tmpl</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">epub_cover</span><span class="p">:</span>
+            <span class="n">image</span><span class="p">,</span> <span class="n">html_tmpl</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">epub_cover</span>
+            <span class="n">image</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">sep</span><span class="p">,</span> <span class="s">&#39;/&#39;</span><span class="p">)</span>
+            <span class="n">mpos</span> <span class="o">=</span> <span class="n">content_tmpl</span><span class="o">.</span><span class="n">rfind</span><span class="p">(</span><span class="s">&#39;&lt;/metadata&gt;&#39;</span><span class="p">)</span>
+            <span class="n">cpos</span> <span class="o">=</span> <span class="n">content_tmpl</span><span class="o">.</span><span class="n">rfind</span><span class="p">(</span><span class="s">&#39;</span><span class="se">\n</span><span class="s">&#39;</span><span class="p">,</span> <span class="mi">0</span> <span class="p">,</span> <span class="n">mpos</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span>
+            <span class="n">content_tmpl</span> <span class="o">=</span> <span class="n">content_tmpl</span><span class="p">[:</span><span class="n">cpos</span><span class="p">]</span> <span class="o">+</span> \
+                <span class="n">_cover_template</span> <span class="o">%</span> <span class="p">{</span><span class="s">&#39;cover&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">esc</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">make_id</span><span class="p">(</span><span class="n">image</span><span class="p">))}</span> <span class="o">+</span> \
+                <span class="n">content_tmpl</span><span class="p">[</span><span class="n">cpos</span><span class="p">:]</span>
+            <span class="k">if</span> <span class="n">html_tmpl</span><span class="p">:</span>
+                <span class="n">spine</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">_spine_template</span> <span class="o">%</span> <span class="p">{</span>
+                    <span class="s">&#39;idref&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">esc</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">make_id</span><span class="p">(</span><span class="n">_coverpage_name</span><span class="p">))})</span>
+                <span class="k">if</span> <span class="n">_coverpage_name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">files</span><span class="p">:</span>
+                    <span class="n">ext</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">splitext</span><span class="p">(</span><span class="n">_coverpage_name</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">files</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">_coverpage_name</span><span class="p">)</span>
+                    <span class="n">projectfiles</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">_file_template</span> <span class="o">%</span> <span class="p">{</span>
+                        <span class="s">&#39;href&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">esc</span><span class="p">(</span><span class="n">_coverpage_name</span><span class="p">),</span>
+                        <span class="s">&#39;id&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">esc</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">make_id</span><span class="p">(</span><span class="n">_coverpage_name</span><span class="p">)),</span>
+                        <span class="s">&#39;media_type&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">esc</span><span class="p">(</span><span class="n">_media_types</span><span class="p">[</span><span class="n">ext</span><span class="p">])</span>
+                    <span class="p">})</span>
+                <span class="n">ctx</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;image&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">esc</span><span class="p">(</span><span class="n">image</span><span class="p">),</span> <span class="s">&#39;title&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">project</span><span class="p">}</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">handle_page</span><span class="p">(</span>
+                        <span class="n">path</span><span class="o">.</span><span class="n">splitext</span><span class="p">(</span><span class="n">_coverpage_name</span><span class="p">)[</span><span class="mi">0</span><span class="p">],</span> <span class="n">ctx</span><span class="p">,</span> <span class="n">html_tmpl</span><span class="p">)</span>
+
+        <span class="n">guide</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">auto_add_cover</span> <span class="o">=</span> <span class="bp">True</span>
+        <span class="n">auto_add_toc</span> <span class="o">=</span> <span class="bp">True</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">epub_guide</span><span class="p">:</span>
+            <span class="k">for</span> <span class="nb">type</span><span class="p">,</span> <span class="n">uri</span><span class="p">,</span> <span class="n">title</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">epub_guide</span><span class="p">:</span>
+                <span class="nb">file</span> <span class="o">=</span> <span class="n">uri</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;#&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="k">if</span> <span class="nb">file</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">files</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">files</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">file</span><span class="p">)</span>
+                <span class="k">if</span> <span class="nb">type</span> <span class="o">==</span> <span class="s">&#39;cover&#39;</span><span class="p">:</span>
+                    <span class="n">auto_add_cover</span> <span class="o">=</span> <span class="bp">False</span>
+                <span class="k">if</span> <span class="nb">type</span> <span class="o">==</span> <span class="s">&#39;toc&#39;</span><span class="p">:</span>
+                    <span class="n">auto_add_toc</span> <span class="o">=</span> <span class="bp">False</span>
+                <span class="n">guide</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">_guide_template</span> <span class="o">%</span> <span class="p">{</span>
+                        <span class="s">&#39;type&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">esc</span><span class="p">(</span><span class="nb">type</span><span class="p">),</span>
+                        <span class="s">&#39;title&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">esc</span><span class="p">(</span><span class="n">title</span><span class="p">),</span>
+                        <span class="s">&#39;uri&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">esc</span><span class="p">(</span><span class="n">uri</span><span class="p">)</span>
+                        <span class="p">})</span>
+        <span class="k">if</span> <span class="n">auto_add_cover</span> <span class="ow">and</span> <span class="n">html_tmpl</span><span class="p">:</span>
+            <span class="n">guide</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">_guide_template</span> <span class="o">%</span> <span class="p">{</span>
+                    <span class="s">&#39;type&#39;</span><span class="p">:</span> <span class="s">&#39;cover&#39;</span><span class="p">,</span>
+                    <span class="s">&#39;title&#39;</span><span class="p">:</span> <span class="n">_guide_titles</span><span class="p">[</span><span class="s">&#39;cover&#39;</span><span class="p">],</span>
+                    <span class="s">&#39;uri&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">esc</span><span class="p">(</span><span class="n">_coverpage_name</span><span class="p">)</span>
+                    <span class="p">})</span>
+        <span class="k">if</span> <span class="n">auto_add_toc</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">refnodes</span><span class="p">:</span>
+            <span class="n">guide</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">_guide_template</span> <span class="o">%</span> <span class="p">{</span>
+                    <span class="s">&#39;type&#39;</span><span class="p">:</span> <span class="s">&#39;toc&#39;</span><span class="p">,</span>
+                    <span class="s">&#39;title&#39;</span><span class="p">:</span> <span class="n">_guide_titles</span><span class="p">[</span><span class="s">&#39;toc&#39;</span><span class="p">],</span>
+                    <span class="s">&#39;uri&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">esc</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">refnodes</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s">&#39;refuri&#39;</span><span class="p">])</span>
+                    <span class="p">})</span>
+        <span class="n">projectfiles</span> <span class="o">=</span> <span class="s">&#39;</span><span class="se">\n</span><span class="s">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">projectfiles</span><span class="p">)</span>
+        <span class="n">spine</span> <span class="o">=</span> <span class="s">&#39;</span><span class="se">\n</span><span class="s">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">spine</span><span class="p">)</span>
+        <span class="n">guide</span> <span class="o">=</span> <span class="s">&#39;</span><span class="se">\n</span><span class="s">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">guide</span><span class="p">)</span>
+
+        <span class="c"># write the project file</span>
+        <span class="n">f</span> <span class="o">=</span> <span class="n">codecs</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="n">outname</span><span class="p">),</span> <span class="s">&#39;w&#39;</span><span class="p">,</span> <span class="s">&#39;utf-8&#39;</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">content_tmpl</span> <span class="o">%</span> \
+                <span class="bp">self</span><span class="o">.</span><span class="n">content_metadata</span><span class="p">(</span><span class="n">projectfiles</span><span class="p">,</span> <span class="n">spine</span><span class="p">,</span> <span class="n">guide</span><span class="p">))</span>
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">new_navpoint</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">node</span><span class="p">,</span> <span class="n">level</span><span class="p">,</span> <span class="n">incr</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Create a new entry in the toc from the node at given level.&quot;&quot;&quot;</span>
+        <span class="c"># XXX Modifies the node</span>
+        <span class="k">if</span> <span class="n">incr</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">playorder</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tocid</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="n">node</span><span class="p">[</span><span class="s">&#39;indent&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">_navpoint_indent</span> <span class="o">*</span> <span class="n">level</span>
+        <span class="n">node</span><span class="p">[</span><span class="s">&#39;navpoint&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">esc</span><span class="p">(</span><span class="n">_navPoint_template</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">tocid</span><span class="p">)</span>
+        <span class="n">node</span><span class="p">[</span><span class="s">&#39;playorder&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">playorder</span>
+        <span class="k">return</span> <span class="n">_navpoint_template</span> <span class="o">%</span> <span class="n">node</span>
+
+    <span class="k">def</span> <span class="nf">insert_subnav</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">node</span><span class="p">,</span> <span class="n">subnav</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Insert nested navpoints for given node.</span>
+
+<span class="sd">        The node and subnav are already rendered to text.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">nlist</span> <span class="o">=</span> <span class="n">node</span><span class="o">.</span><span class="n">rsplit</span><span class="p">(</span><span class="s">&#39;</span><span class="se">\n</span><span class="s">&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">nlist</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">subnav</span><span class="p">)</span>
+        <span class="k">return</span> <span class="s">&#39;</span><span class="se">\n</span><span class="s">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">nlist</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">build_navpoints</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">nodes</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Create the toc navigation structure.</span>
+
+<span class="sd">        Subelements of a node are nested inside the navpoint.  For nested nodes</span>
+<span class="sd">        the parent node is reinserted in the subnav.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">navstack</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">navlist</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">level</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="n">lastnode</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">nodes</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">node</span><span class="p">[</span><span class="s">&#39;text&#39;</span><span class="p">]:</span>
+                <span class="k">continue</span>
+            <span class="nb">file</span> <span class="o">=</span> <span class="n">node</span><span class="p">[</span><span class="s">&#39;refuri&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">&#39;#&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="k">if</span> <span class="nb">file</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">ignored_files</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="k">if</span> <span class="n">node</span><span class="p">[</span><span class="s">&#39;level&#39;</span><span class="p">]</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">epub_tocdepth</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="k">if</span> <span class="n">node</span><span class="p">[</span><span class="s">&#39;level&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">level</span><span class="p">:</span>
+                <span class="n">navlist</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">new_navpoint</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="n">level</span><span class="p">))</span>
+            <span class="k">elif</span> <span class="n">node</span><span class="p">[</span><span class="s">&#39;level&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">level</span> <span class="o">+</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="n">navstack</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">navlist</span><span class="p">)</span>
+                <span class="n">navlist</span> <span class="o">=</span> <span class="p">[]</span>
+                <span class="n">level</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="k">if</span> <span class="n">lastnode</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">epub_tocdup</span><span class="p">:</span>
+                    <span class="c"># Insert starting point in subtoc with same playOrder</span>
+                    <span class="n">navlist</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">new_navpoint</span><span class="p">(</span><span class="n">lastnode</span><span class="p">,</span> <span class="n">level</span><span class="p">,</span> <span class="bp">False</span><span class="p">))</span>
+                <span class="n">navlist</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">new_navpoint</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="n">level</span><span class="p">))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">while</span> <span class="n">node</span><span class="p">[</span><span class="s">&#39;level&#39;</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">level</span><span class="p">:</span>
+                    <span class="n">subnav</span> <span class="o">=</span> <span class="s">&#39;</span><span class="se">\n</span><span class="s">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">navlist</span><span class="p">)</span>
+                    <span class="n">navlist</span> <span class="o">=</span> <span class="n">navstack</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+                    <span class="n">navlist</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">insert_subnav</span><span class="p">(</span><span class="n">navlist</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">subnav</span><span class="p">)</span>
+                    <span class="n">level</span> <span class="o">-=</span> <span class="mi">1</span>
+                <span class="n">navlist</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">new_navpoint</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="n">level</span><span class="p">))</span>
+            <span class="n">lastnode</span> <span class="o">=</span> <span class="n">node</span>
+        <span class="k">while</span> <span class="n">level</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">subnav</span> <span class="o">=</span> <span class="s">&#39;</span><span class="se">\n</span><span class="s">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">navlist</span><span class="p">)</span>
+            <span class="n">navlist</span> <span class="o">=</span> <span class="n">navstack</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+            <span class="n">navlist</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">insert_subnav</span><span class="p">(</span><span class="n">navlist</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">subnav</span><span class="p">)</span>
+            <span class="n">level</span> <span class="o">-=</span> <span class="mi">1</span>
+        <span class="k">return</span> <span class="s">&#39;</span><span class="se">\n</span><span class="s">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">navlist</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">toc_metadata</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">level</span><span class="p">,</span> <span class="n">navpoints</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Create a dictionary with all metadata for the toc.ncx file</span>
+<span class="sd">        properly escaped.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">metadata</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">metadata</span><span class="p">[</span><span class="s">&#39;uid&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">epub_uid</span>
+        <span class="n">metadata</span><span class="p">[</span><span class="s">&#39;title&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">epub_title</span>
+        <span class="n">metadata</span><span class="p">[</span><span class="s">&#39;level&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">level</span>
+        <span class="n">metadata</span><span class="p">[</span><span class="s">&#39;navpoints&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">navpoints</span>
+        <span class="k">return</span> <span class="n">metadata</span>
+
+    <span class="k">def</span> <span class="nf">build_toc</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">outdir</span><span class="p">,</span> <span class="n">outname</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Write the metainfo file toc.ncx.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&#39;writing </span><span class="si">%s</span><span class="s"> file...&#39;</span> <span class="o">%</span> <span class="n">outname</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">epub_tocscope</span> <span class="o">==</span> <span class="s">&#39;default&#39;</span><span class="p">:</span>
+            <span class="n">doctree</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">get_and_resolve_doctree</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">master_doc</span><span class="p">,</span>
+                <span class="bp">self</span><span class="p">,</span> <span class="n">prune_toctrees</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">includehidden</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+            <span class="n">refnodes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_refnodes</span><span class="p">(</span><span class="n">doctree</span><span class="p">,</span> <span class="p">[])</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">toc_add_files</span><span class="p">(</span><span class="n">refnodes</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c"># &#39;includehidden&#39;</span>
+            <span class="n">refnodes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">refnodes</span>
+        <span class="n">navpoints</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">build_navpoints</span><span class="p">(</span><span class="n">refnodes</span><span class="p">)</span>
+        <span class="n">level</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">item</span><span class="p">[</span><span class="s">&#39;level&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">refnodes</span><span class="p">)</span>
+        <span class="n">level</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">level</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">epub_tocdepth</span><span class="p">)</span>
+        <span class="n">f</span> <span class="o">=</span> <span class="n">codecs</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="n">outname</span><span class="p">),</span> <span class="s">&#39;w&#39;</span><span class="p">,</span> <span class="s">&#39;utf-8&#39;</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">_toc_template</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">toc_metadata</span><span class="p">(</span><span class="n">level</span><span class="p">,</span> <span class="n">navpoints</span><span class="p">))</span>
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">build_epub</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">outdir</span><span class="p">,</span> <span class="n">outname</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Write the epub file.</span>
+
+<span class="sd">        It is a zip file with the mimetype file stored uncompressed as the first</span>
+<span class="sd">        entry.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&#39;writing </span><span class="si">%s</span><span class="s"> file...&#39;</span> <span class="o">%</span> <span class="n">outname</span><span class="p">)</span>
+        <span class="n">projectfiles</span> <span class="o">=</span> <span class="p">[</span><span class="s">&#39;META-INF/container.xml&#39;</span><span class="p">,</span> <span class="s">&#39;content.opf&#39;</span><span class="p">,</span> <span class="s">&#39;toc.ncx&#39;</span><span class="p">]</span> \
+            <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">files</span>
+        <span class="n">epub</span> <span class="o">=</span> <span class="n">zipfile</span><span class="o">.</span><span class="n">ZipFile</span><span class="p">(</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="n">outname</span><span class="p">),</span> <span class="s">&#39;w&#39;</span><span class="p">,</span> \
+            <span class="n">zipfile</span><span class="o">.</span><span class="n">ZIP_DEFLATED</span><span class="p">)</span>
+        <span class="n">epub</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="s">&#39;mimetype&#39;</span><span class="p">),</span> <span class="s">&#39;mimetype&#39;</span><span class="p">,</span> \
+            <span class="n">zipfile</span><span class="o">.</span><span class="n">ZIP_STORED</span><span class="p">)</span>
+        <span class="k">for</span> <span class="nb">file</span> <span class="ow">in</span> <span class="n">projectfiles</span><span class="p">:</span>
+            <span class="n">fp</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="nb">file</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">sys</span><span class="o">.</span><span class="n">version_info</span> <span class="o">&lt;</span> <span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">6</span><span class="p">):</span>
+                <span class="c"># When zipile.ZipFile.write call with unicode filename, ZipFile</span>
+                <span class="c"># encode filename to &#39;utf-8&#39; (only after Python-2.6).</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="nb">file</span><span class="p">,</span> <span class="nb">unicode</span><span class="p">):</span>
+                    <span class="c"># OEBPS Container Format (OCF) 2.0.1 specification require</span>
+                    <span class="c"># &quot;File Names MUST be UTF-8 encoded&quot;.</span>
+                    <span class="nb">file</span> <span class="o">=</span> <span class="nb">file</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s">&#39;utf-8&#39;</span><span class="p">)</span>
+            <span class="n">epub</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">fp</span><span class="p">,</span> <span class="nb">file</span><span class="p">,</span> <span class="n">zipfile</span><span class="o">.</span><span class="n">ZIP_DEFLATED</span><span class="p">)</span>
+        <span class="n">epub</span><span class="o">.</span><span class="n">close</span><span class="p">()</span></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../index.html">LearningStudio API 1.0 documentation</a> &raquo;</li>
+          <li><a href="../../index.html" >Module code</a> &raquo;</li>
+          <li><a href="../../sphinx.html" >sphinx</a> &raquo;</li>
+          <li><a href="../builders.html" >sphinx.builders</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2014, Pearson.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.2.
+    </div>
+  </body>
+</html>

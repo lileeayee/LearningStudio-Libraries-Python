@@ -1,0 +1,169 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>sphinx.builders.text &mdash; LearningStudio API 1.0 documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '1.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="LearningStudio API 1.0 documentation" href="../../../index.html" />
+    <link rel="up" title="sphinx.builders" href="../builders.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../index.html">LearningStudio API 1.0 documentation</a> &raquo;</li>
+          <li><a href="../../index.html" >Module code</a> &raquo;</li>
+          <li><a href="../../sphinx.html" >sphinx</a> &raquo;</li>
+          <li><a href="../builders.html" accesskey="U">sphinx.builders</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for sphinx.builders.text</h1><div class="highlight"><pre>
+<span class="c"># -*- coding: utf-8 -*-</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    sphinx.builders.text</span>
+<span class="sd">    ~~~~~~~~~~~~~~~~~~~~</span>
+
+<span class="sd">    Plain-text Sphinx builder.</span>
+
+<span class="sd">    :copyright: Copyright 2007-2014 by the Sphinx team, see AUTHORS.</span>
+<span class="sd">    :license: BSD, see LICENSE for details.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">codecs</span>
+<span class="kn">from</span> <span class="nn">os</span> <span class="kn">import</span> <span class="n">path</span>
+
+<span class="kn">from</span> <span class="nn">docutils.io</span> <span class="kn">import</span> <span class="n">StringOutput</span>
+
+<span class="kn">from</span> <span class="nn">sphinx.builders</span> <span class="kn">import</span> <span class="n">Builder</span>
+<span class="kn">from</span> <span class="nn">sphinx.util.osutil</span> <span class="kn">import</span> <span class="n">ensuredir</span><span class="p">,</span> <span class="n">os_path</span>
+<span class="kn">from</span> <span class="nn">sphinx.writers.text</span> <span class="kn">import</span> <span class="n">TextWriter</span>
+
+
+<div class="viewcode-block" id="TextBuilder"><a class="viewcode-back" href="../../../build/Sphinx/doc/builders.html#sphinx.builders.text.TextBuilder">[docs]</a><span class="k">class</span> <span class="nc">TextBuilder</span><span class="p">(</span><span class="n">Builder</span><span class="p">):</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="s">&#39;text&#39;</span>
+    <span class="n">format</span> <span class="o">=</span> <span class="s">&#39;text&#39;</span>
+    <span class="n">out_suffix</span> <span class="o">=</span> <span class="s">&#39;.txt&#39;</span>
+    <span class="n">allow_parallel</span> <span class="o">=</span> <span class="bp">True</span>
+
+    <span class="k">def</span> <span class="nf">init</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">pass</span>
+
+    <span class="k">def</span> <span class="nf">get_outdated_docs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">docname</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">found_docs</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">docname</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">all_docs</span><span class="p">:</span>
+                <span class="k">yield</span> <span class="n">docname</span>
+                <span class="k">continue</span>
+            <span class="n">targetname</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">doc2path</span><span class="p">(</span><span class="n">docname</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">outdir</span><span class="p">,</span>
+                                           <span class="bp">self</span><span class="o">.</span><span class="n">out_suffix</span><span class="p">)</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">targetmtime</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">getmtime</span><span class="p">(</span><span class="n">targetname</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+                <span class="n">targetmtime</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">srcmtime</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">getmtime</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">doc2path</span><span class="p">(</span><span class="n">docname</span><span class="p">))</span>
+                <span class="k">if</span> <span class="n">srcmtime</span> <span class="o">&gt;</span> <span class="n">targetmtime</span><span class="p">:</span>
+                    <span class="k">yield</span> <span class="n">docname</span>
+            <span class="k">except</span> <span class="ne">EnvironmentError</span><span class="p">:</span>
+                <span class="c"># source doesn&#39;t exist anymore</span>
+                <span class="k">pass</span>
+
+    <span class="k">def</span> <span class="nf">get_target_uri</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">docname</span><span class="p">,</span> <span class="n">typ</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s">&#39;&#39;</span>
+
+    <span class="k">def</span> <span class="nf">prepare_writing</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">docnames</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">writer</span> <span class="o">=</span> <span class="n">TextWriter</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">write_doc</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">docname</span><span class="p">,</span> <span class="n">doctree</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">current_docname</span> <span class="o">=</span> <span class="n">docname</span>
+        <span class="n">destination</span> <span class="o">=</span> <span class="n">StringOutput</span><span class="p">(</span><span class="n">encoding</span><span class="o">=</span><span class="s">&#39;utf-8&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">writer</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">doctree</span><span class="p">,</span> <span class="n">destination</span><span class="p">)</span>
+        <span class="n">outfilename</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">outdir</span><span class="p">,</span> <span class="n">os_path</span><span class="p">(</span><span class="n">docname</span><span class="p">)</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">out_suffix</span><span class="p">)</span>
+        <span class="n">ensuredir</span><span class="p">(</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">outfilename</span><span class="p">))</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">f</span> <span class="o">=</span> <span class="n">codecs</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">outfilename</span><span class="p">,</span> <span class="s">&#39;w&#39;</span><span class="p">,</span> <span class="s">&#39;utf-8&#39;</span><span class="p">)</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">writer</span><span class="o">.</span><span class="n">output</span><span class="p">)</span>
+            <span class="k">finally</span><span class="p">:</span>
+                <span class="n">f</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="k">except</span> <span class="p">(</span><span class="ne">IOError</span><span class="p">,</span> <span class="ne">OSError</span><span class="p">),</span> <span class="n">err</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s">&quot;error writing file </span><span class="si">%s</span><span class="s">: </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">outfilename</span><span class="p">,</span> <span class="n">err</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">finish</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">pass</span></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../index.html">LearningStudio API 1.0 documentation</a> &raquo;</li>
+          <li><a href="../../index.html" >Module code</a> &raquo;</li>
+          <li><a href="../../sphinx.html" >sphinx</a> &raquo;</li>
+          <li><a href="../builders.html" >sphinx.builders</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2014, Pearson.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.2.
+    </div>
+  </body>
+</html>

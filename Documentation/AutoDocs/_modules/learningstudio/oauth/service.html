@@ -1,0 +1,435 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>learningstudio.oauth.service &mdash; LearningStudio API 1.0 documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '1.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="LearningStudio API 1.0 documentation" href="../../../index.html" />
+    <link rel="up" title="Module code" href="../../index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../index.html">LearningStudio API 1.0 documentation</a> &raquo;</li>
+          <li><a href="../../index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for learningstudio.oauth.service</h1><div class="highlight"><pre>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">LearningStudio RESTful API Libraries </span>
+<span class="sd">These libraries make it easier to use the LearningStudio Course APIs.</span>
+<span class="sd">Full Documentation is provided with the library. </span>
+
+<span class="sd">Need Help or Have Questions? </span>
+<span class="sd">Please use the PDN Developer Community at https://community.pdn.pearson.com</span>
+
+<span class="sd">:category   LearningStudio Course APIs</span>
+<span class="sd">:author     Wes Williams &lt;wes.williams@pearson.com&gt;</span>
+<span class="sd">:author     Pearson Developer Services Team &lt;apisupport@pearson.com&gt;</span>
+<span class="sd">:copyright  2014 Pearson Education Inc.</span>
+<span class="sd">:license    http://www.apache.org/licenses/LICENSE-2.0  Apache 2.0</span>
+<span class="sd">:version    1.0</span>
+
+<span class="sd">Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
+<span class="sd">you may not use this file except in compliance with the License.</span>
+<span class="sd">You may obtain a copy of the License at</span>
+
+<span class="sd">    http://www.apache.org/licenses/LICENSE-2.0</span>
+
+<span class="sd">Unless required by applicable law or agreed to in writing, software</span>
+<span class="sd">distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="sd">WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="sd">See the License for the specific language governing permissions and</span>
+<span class="sd">limitations under the License.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">service</span>
+<span class="sd">-------</span>
+
+<span class="sd">Defines services for generating OAuth request signatures.</span>
+
+
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">uuid</span>
+<span class="kn">import</span> <span class="nn">base64</span>
+<span class="kn">import</span> <span class="nn">copy</span>
+<span class="kn">import</span> <span class="nn">json</span>
+
+<span class="n">PY_3</span> <span class="o">=</span> <span class="bp">False</span>
+
+<span class="k">try</span><span class="p">:</span>
+    <span class="kn">from</span> <span class="nn">urllib</span> <span class="kn">import</span> <span class="n">quote_plus</span>
+<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+    <span class="kn">from</span> <span class="nn">urllib.parse</span> <span class="kn">import</span> <span class="n">quote_plus</span>
+    <span class="n">PY_3</span> <span class="o">=</span> <span class="bp">True</span>
+
+<span class="kn">from</span> <span class="nn">learningstudio.oauth.request</span> <span class="kn">import</span> <span class="n">OAuth1Request</span><span class="p">,</span> <span class="n">OAuth2Request</span>
+<span class="kn">from</span> <span class="nn">learningstudio.oauth.util</span> <span class="kn">import</span> <span class="n">gen_authcode</span><span class="p">,</span> <span class="n">current_time_millis</span>
+<span class="kn">from</span> <span class="nn">learningstudio.oauth.util</span> <span class="kn">import</span> <span class="n">parse_url</span><span class="p">,</span> <span class="n">url_query_to_dict</span>
+<span class="kn">from</span> <span class="nn">learningstudio.oauth.util</span> <span class="kn">import</span> <span class="n">parse_url_and_connect</span><span class="p">,</span> <span class="n">json_loads</span>
+<span class="kn">from</span> <span class="nn">learningstudio.oauth.config</span> <span class="kn">import</span> <span class="n">consumer_key</span><span class="p">,</span> <span class="n">application_id</span>
+<span class="kn">from</span> <span class="nn">learningstudio.oauth.config</span> <span class="kn">import</span> <span class="n">consumer_secret</span><span class="p">,</span> <span class="n">application_name</span>
+<span class="kn">from</span> <span class="nn">learningstudio.oauth.config</span> <span class="kn">import</span> <span class="n">client_string</span>
+
+<div class="viewcode-block" id="AuthMethod"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.oauth.service.AuthMethod">[docs]</a><span class="k">class</span> <span class="nc">AuthMethod</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;Defines constants that identify the exact type of an OAuthService object.</span>
+
+<span class="sd">    The constants are exposed as return values of functions to prevent unintentional</span>
+<span class="sd">    mutation.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">__OAUTH1_SIGNATURE_SERVICE</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">__OAUTH2_PASSWORD_SERVICE</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="n">__OAUTH2_ASSERTION_SERVICE</span> <span class="o">=</span> <span class="mi">2</span>
+
+    <span class="nd">@staticmethod</span> 
+    <span class="k">def</span> <span class="nf">oauth1_signature_service</span><span class="p">():</span> <span class="k">return</span> <span class="n">AuthMethod</span><span class="o">.</span><span class="n">__OAUTH1_SIGNATURE_SERVICE</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">oauth2_password_service</span><span class="p">():</span> <span class="k">return</span> <span class="n">AuthMethod</span><span class="o">.</span><span class="n">__OAUTH2_PASSWORD_SERVICE</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">oauth2_assertion_service</span><span class="p">():</span> <span class="k">return</span> <span class="n">AuthMethod</span><span class="o">.</span><span class="n">__OAUTH2_ASSERTION_SERVICE</span>
+</div>
+<div class="viewcode-block" id="OAuthServiceFactory"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.oauth.service.OAuthServiceFactory">[docs]</a><span class="k">class</span> <span class="nc">OAuthServiceFactory</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;Factory for building various OAuthService objects.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">configuration</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Initializes a OAuthServiceFactory object.</span>
+
+<span class="sd">        :param configuration: The configuration used for building the OAuthService object.</span>
+<span class="sd">        :type configuration: dict</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__configuration</span> <span class="o">=</span> <span class="n">configuration</span>
+
+<div class="viewcode-block" id="OAuthServiceFactory.build"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.oauth.service.OAuthServiceFactory.build">[docs]</a>    <span class="k">def</span> <span class="nf">build</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Builds and returns an OAuthService object. </span>
+
+<span class="sd">        :param name: The type of the object to create.</span>
+<span class="sd">        :type name: str</span>
+<span class="sd">        :returns: An OAuthService object.</span>
+<span class="sd">    </span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">name</span> <span class="o">==</span> <span class="n">AuthMethod</span><span class="o">.</span><span class="n">oauth1_signature_service</span><span class="p">():</span> <span class="k">return</span> <span class="n">OAuth1SignatureService</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__configuration</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">name</span> <span class="o">==</span> <span class="n">AuthMethod</span><span class="o">.</span><span class="n">oauth2_password_service</span><span class="p">():</span> <span class="k">return</span> <span class="n">OAuth2PasswordService</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__configuration</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">name</span> <span class="o">==</span> <span class="n">AuthMethod</span><span class="o">.</span><span class="n">oauth2_assertion_service</span><span class="p">():</span> <span class="k">return</span> <span class="n">OAuth2AssertionService</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__configuration</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span> <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+</div></div>
+<div class="viewcode-block" id="OAuth1SignatureService"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.oauth.service.OAuth1SignatureService">[docs]</a><span class="k">class</span> <span class="nc">OAuth1SignatureService</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;Generates an OAuth1 signature service request.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+ 
+    <span class="n">SIGNATURE_METHOD</span> <span class="o">=</span> <span class="s">&#39;CMAC-AES&#39;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">configuration</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Initializes an OAuth1SignatureService object.</span>
+
+<span class="sd">        :param configuration: The configuration used for initializing the service.</span>
+<span class="sd">        :type configuration: dict</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__configuration</span> <span class="o">=</span> <span class="n">configuration</span>
+
+<div class="viewcode-block" id="OAuth1SignatureService.generateRequest"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.oauth.service.OAuth1SignatureService.generateRequest">[docs]</a>    <span class="k">def</span> <span class="nf">generateRequest</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">http_method</span> <span class="o">=</span> <span class="s">&#39;GET&#39;</span><span class="p">,</span>
+                        <span class="n">url</span> <span class="o">=</span> <span class="bp">None</span><span class="p">,</span> <span class="n">body</span> <span class="o">=</span> <span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Creates and returns a signature that can be used with an OAuth1 request.</span>
+
+<span class="sd">        :param http_method: HTTP method to be used in the request. Defaults to &#39;GET&#39;.</span>
+<span class="sd">        :type http_method: str</span>
+<span class="sd">        :param url: The request URL.</span>
+<span class="sd">        :type url: str</span>
+<span class="sd">        :param body: The request content. Defaults to None.</span>
+<span class="sd">        :type body: str</span>
+<span class="sd">        :returns: A properly initialized OAuth1 request object.</span>
+<span class="sd">        :rtype: :class:`learningstudio.oauth.request.OAuth1Request`</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">key</span> <span class="o">=</span> <span class="n">consumer_key</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__configuration</span><span class="p">)</span>
+        <span class="n">appid</span> <span class="o">=</span> <span class="n">application_id</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__configuration</span><span class="p">)</span>
+        <span class="n">oauth_params</span> <span class="o">=</span> <span class="p">{</span> <span class="s">&#39;oauth_consumer_key&#39;</span> <span class="p">:</span> <span class="n">key</span><span class="p">,</span>
+                         <span class="s">&#39;application_id&#39;</span> <span class="p">:</span> <span class="n">appid</span><span class="p">,</span>
+                         <span class="s">&#39;oauth_signature_method&#39;</span> <span class="p">:</span> <span class="n">OAuth1SignatureService</span><span class="o">.</span><span class="n">SIGNATURE_METHOD</span><span class="p">,</span>
+                         <span class="s">&#39;oauth_timestamp&#39;</span> <span class="p">:</span> <span class="n">OAuth1SignatureService</span><span class="o">.</span><span class="n">__get_timestamp</span><span class="p">(),</span>
+                         <span class="s">&#39;oauth_nonce&#39;</span> <span class="p">:</span> <span class="n">OAuth1SignatureService</span><span class="o">.</span><span class="n">__get_nonce</span><span class="p">()</span> <span class="p">}</span>
+        <span class="n">body</span> <span class="o">=</span> <span class="n">body</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">encoding</span> <span class="o">=</span> <span class="s">&#39;UTF-8&#39;</span><span class="p">)</span> <span class="k">if</span> <span class="n">OAuth1SignatureService</span><span class="o">.</span><span class="n">__method_has_body</span><span class="p">(</span><span class="n">http_method</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">body</span><span class="p">)</span> <span class="ow">is</span> <span class="nb">str</span><span class="p">)</span> <span class="k">else</span> <span class="bp">None</span>
+        <span class="n">secret</span> <span class="o">=</span> <span class="n">consumer_secret</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__configuration</span><span class="p">)</span>
+        <span class="n">oauth_params</span><span class="p">[</span><span class="s">&#39;oauth_signature&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">OAuth1SignatureService</span><span class="o">.</span><span class="n">__gensign</span><span class="p">(</span><span class="n">http_method</span><span class="p">,</span> <span class="n">url</span><span class="p">,</span> 
+                                                                           <span class="n">oauth_params</span><span class="p">,</span> <span class="n">body</span><span class="p">,</span>                                                    
+                                                                           <span class="n">secret</span><span class="p">)</span>
+        <span class="n">sign</span> <span class="o">=</span> <span class="n">OAuth1SignatureService</span><span class="o">.</span><span class="n">__make_signature</span><span class="p">(</span><span class="n">oauth_params</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">OAuth1Request</span><span class="p">(</span><span class="n">headers</span> <span class="o">=</span> <span class="n">OAuth1SignatureService</span><span class="o">.</span><span class="n">__make_headers</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">sign</span><span class="p">),</span>
+                             <span class="n">signature</span> <span class="o">=</span> <span class="n">sign</span><span class="p">)</span>
+</div>
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">__method_has_body</span><span class="p">(</span><span class="n">http_method</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">http_method</span> <span class="o">==</span> <span class="s">&#39;POST&#39;</span> <span class="ow">or</span> <span class="n">http_method</span> <span class="o">==</span> <span class="s">&#39;PUT&#39;</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">__make_headers</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">sign</span><span class="p">):</span>
+        <span class="n">i</span> <span class="o">=</span> <span class="n">url</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s">&#39;?&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">i</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span> <span class="n">url</span> <span class="o">=</span> <span class="n">url</span><span class="p">[:</span><span class="n">i</span><span class="p">]</span>
+        <span class="k">return</span> <span class="p">{</span> <span class="s">&#39;X-Authorization&#39;</span> <span class="p">:</span> <span class="s">&#39;OAuth realm=&quot;</span><span class="si">%s</span><span class="s">&quot;,</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">sign</span><span class="p">)</span> <span class="p">}</span>
+        
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">__make_signature</span><span class="p">(</span><span class="n">oauth_params</span><span class="p">):</span>
+        <span class="n">s</span> <span class="o">=</span> <span class="s">&#39;&#39;</span>
+        <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">oauth_params</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="n">value</span> <span class="o">=</span> <span class="n">oauth_params</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+            <span class="n">s</span> <span class="o">+=</span> <span class="s">&#39;</span><span class="si">%s</span><span class="s">=&quot;</span><span class="si">%s</span><span class="s">&quot;,&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">quote_plus</span><span class="p">(</span><span class="n">value</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">s</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">__get_timestamp</span><span class="p">():</span>
+        <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">())))</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">__get_nonce</span><span class="p">():</span>
+        <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="n">uuid</span><span class="o">.</span><span class="n">uuid4</span><span class="p">()</span><span class="o">.</span><span class="n">hex</span><span class="o">.</span><span class="n">upper</span><span class="p">()[</span><span class="mi">0</span><span class="p">:</span><span class="mi">32</span><span class="p">])</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">__gensign</span><span class="p">(</span><span class="n">http_method</span><span class="p">,</span> <span class="n">url</span><span class="p">,</span> <span class="n">oauth_params</span><span class="p">,</span> <span class="n">body_bytes</span><span class="p">,</span> <span class="n">secret</span><span class="p">):</span>
+        <span class="n">http_method</span> <span class="o">=</span> <span class="n">http_method</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span>
+        <span class="n">encoded_params</span> <span class="o">=</span> <span class="n">OAuth1SignatureService</span><span class="o">.</span><span class="n">__normalize_params</span><span class="p">(</span><span class="n">http_method</span><span class="p">,</span> <span class="n">url</span><span class="p">,</span> 
+                                                                   <span class="n">oauth_params</span><span class="p">,</span> <span class="n">body_bytes</span><span class="p">)</span>
+        <span class="n">encoded_uri</span> <span class="o">=</span> <span class="n">quote_plus</span><span class="p">(</span><span class="n">parse_url</span><span class="p">(</span><span class="n">url</span><span class="p">)</span><span class="o">.</span><span class="n">path</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">OAuth1SignatureService</span><span class="o">.</span><span class="n">__gencmac</span><span class="p">(</span><span class="n">secret</span><span class="p">,</span> <span class="s">&#39;</span><span class="si">%s</span><span class="s">&amp;</span><span class="si">%s</span><span class="s">&amp;</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">http_method</span><span class="p">,</span> 
+                                                                      <span class="n">encoded_uri</span><span class="p">,</span>
+                                                                      <span class="n">encoded_params</span><span class="p">))</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">__normalize_params</span><span class="p">(</span><span class="n">http_method</span><span class="p">,</span> <span class="n">url</span><span class="p">,</span> <span class="n">oauth_params</span><span class="p">,</span> <span class="n">body_bytes</span><span class="p">):</span>
+        <span class="n">oauth_params</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">oauth_params</span><span class="p">)</span>
+        <span class="n">qdict</span> <span class="o">=</span> <span class="n">url_query_to_dict</span><span class="p">(</span><span class="n">parse_url</span><span class="p">(</span><span class="n">url</span><span class="p">)</span><span class="o">.</span><span class="n">query</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">qdict</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="n">value</span> <span class="o">=</span> <span class="n">qdict</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span> <span class="n">value</span> <span class="o">=</span> <span class="n">value</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">oauth_params</span><span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">key</span><span class="p">)]</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">body_bytes</span> <span class="o">!=</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">body_bytes</span><span class="p">)</span> <span class="ow">is</span> <span class="nb">bytes</span><span class="p">:</span> <span class="n">body_bytes</span> <span class="o">=</span> <span class="n">body_bytes</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">encoding</span> <span class="o">=</span> <span class="s">&#39;UTF-8&#39;</span><span class="p">)</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="n">body_bytes</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s">&#39;</span><span class="se">\r\n</span><span class="s">&#39;</span><span class="p">,</span> <span class="s">&#39;&#39;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">PY_3</span><span class="p">:</span> <span class="n">body_bytes</span> <span class="o">=</span> <span class="n">base64</span><span class="o">.</span><span class="n">b64encode</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">encoding</span> <span class="o">=</span> <span class="s">&#39;UTF-8&#39;</span><span class="p">))</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">encoding</span> <span class="o">=</span> <span class="s">&#39;UTF-8&#39;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span> <span class="n">body_bytes</span> <span class="o">=</span> <span class="n">base64</span><span class="o">.</span><span class="n">b64encode</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+            <span class="n">oauth_params</span><span class="p">[</span><span class="s">&#39;body&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">quote_plus</span><span class="p">(</span><span class="n">quote_plus</span><span class="p">(</span><span class="n">body_bytes</span><span class="p">))</span>
+
+        <span class="n">combined_params</span> <span class="o">=</span> <span class="s">&#39;&#39;</span>
+        <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">oauth_params</span><span class="p">,</span> <span class="n">key</span> <span class="o">=</span> <span class="nb">str</span><span class="o">.</span><span class="n">lower</span><span class="p">):</span>
+            <span class="n">combined_params</span> <span class="o">+=</span> <span class="s">&#39;</span><span class="si">%s</span><span class="s">=</span><span class="si">%s</span><span class="s">&amp;&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">oauth_params</span><span class="p">[</span><span class="n">key</span><span class="p">])</span>
+
+        <span class="k">return</span> <span class="n">quote_plus</span><span class="p">(</span><span class="n">combined_params</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+        
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">__gencmac</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">msg</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">gen_authcode</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">msg</span><span class="p">)</span>
+</div>
+<span class="n">OAUTH_API_DOMAIN</span> <span class="o">=</span> <span class="s">&#39;https://api.learningstudio.com&#39;</span>
+<span class="n">OAUTH_URL</span> <span class="o">=</span> <span class="n">OAUTH_API_DOMAIN</span> <span class="o">+</span> <span class="s">&#39;/token&#39;</span>
+
+<span class="n">OAUTH_TIMESTAMP_FMT</span> <span class="o">=</span> <span class="s">&#39;%Y-%m-</span><span class="si">%d</span><span class="s">T%H:%M:%SZ&#39;</span>
+
+<span class="k">def</span> <span class="nf">build_assertion</span><span class="p">(</span><span class="n">application_name</span><span class="p">,</span> <span class="n">consumer_key</span><span class="p">,</span>
+                    <span class="n">application_id</span><span class="p">,</span> <span class="n">client_string</span><span class="p">,</span> <span class="n">username</span><span class="p">,</span>
+                    <span class="n">consumer_secret</span><span class="p">):</span>
+    <span class="n">timestamp</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="n">OAUTH_TIMESTAMP_FMT</span><span class="p">,</span> <span class="n">time</span><span class="o">.</span><span class="n">gmtime</span><span class="p">())</span>
+    <span class="n">assertion</span> <span class="o">=</span> <span class="s">&#39;</span><span class="si">%s</span><span class="s">|</span><span class="si">%s</span><span class="s">|</span><span class="si">%s</span><span class="s">|</span><span class="si">%s</span><span class="s">|</span><span class="si">%s</span><span class="s">|</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">application_name</span><span class="p">,</span> <span class="n">consumer_key</span><span class="p">,</span> <span class="n">application_id</span><span class="p">,</span>
+                                       <span class="n">client_string</span><span class="p">,</span> <span class="n">username</span><span class="p">,</span> <span class="n">timestamp</span><span class="p">)</span>
+    <span class="n">cmac</span> <span class="o">=</span> <span class="n">gen_authcode</span><span class="p">(</span><span class="n">consumer_secret</span><span class="p">,</span> <span class="n">assertion</span><span class="p">,</span> <span class="n">b64</span> <span class="o">=</span> <span class="bp">False</span><span class="p">)</span>
+    <span class="k">return</span> <span class="s">&#39;</span><span class="si">%s</span><span class="s">|</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">assertion</span><span class="p">,</span> <span class="n">cmac</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">make_oauth2request</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
+    <span class="n">byte_array</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">encoding</span> <span class="o">=</span> <span class="s">&#39;UTF-8&#39;</span><span class="p">)</span> <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">data</span><span class="p">)</span> <span class="ow">is</span> <span class="nb">str</span> <span class="k">else</span> <span class="n">data</span>
+    <span class="n">http_conn</span> <span class="o">=</span> <span class="bp">None</span>    
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">http_conn</span><span class="p">,</span> <span class="n">parts</span> <span class="o">=</span> <span class="n">parse_url_and_connect</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
+        <span class="n">headers</span> <span class="o">=</span> <span class="p">{</span> <span class="s">&#39;Content-Type&#39;</span> <span class="p">:</span> <span class="s">&#39;application/x-www-form-urlencoded&#39;</span><span class="p">,</span>
+                    <span class="s">&#39;Content-Length&#39;</span> <span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">byte_array</span><span class="p">)</span> <span class="p">}</span>
+        <span class="n">http_conn</span><span class="o">.</span><span class="n">request</span><span class="p">(</span><span class="s">&#39;POST&#39;</span><span class="p">,</span> <span class="n">parts</span><span class="o">.</span><span class="n">path</span><span class="p">,</span> <span class="n">byte_array</span><span class="p">,</span> <span class="n">headers</span><span class="p">)</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="n">http_conn</span><span class="o">.</span><span class="n">getresponse</span><span class="p">()</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+        <span class="n">json_data</span> <span class="o">=</span> <span class="n">json_loads</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">json_to_oauth2request</span><span class="p">(</span><span class="n">json_data</span><span class="p">)</span>
+    <span class="k">finally</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">http_conn</span> <span class="o">!=</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">http_conn</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+    <span class="k">return</span> <span class="bp">None</span>
+
+<span class="k">def</span> <span class="nf">json_to_oauth2request</span><span class="p">(</span><span class="n">json_data</span><span class="p">):</span>
+    <span class="n">access_token</span> <span class="o">=</span> <span class="n">json_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;access_token&#39;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">access_token</span> <span class="o">==</span> <span class="bp">None</span> <span class="ow">or</span> <span class="nb">len</span><span class="p">(</span><span class="n">access_token</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">IOError</span><span class="p">(</span><span class="s">&#39;Missing access token.&#39;</span><span class="p">)</span>
+    <span class="n">creation_time</span> <span class="o">=</span> <span class="n">current_time_millis</span><span class="p">()</span>
+    <span class="n">authstr</span> <span class="o">=</span> <span class="s">&#39;Access_Token access_token=</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">access_token</span><span class="p">,)</span>
+    <span class="n">headers</span> <span class="o">=</span> <span class="p">{</span><span class="s">&#39;X-Authorization&#39;</span> <span class="p">:</span> <span class="n">authstr</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">encoding</span> <span class="o">=</span> <span class="s">&#39;UTF-8&#39;</span><span class="p">)</span> <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">authstr</span><span class="p">)</span> <span class="ow">is</span> <span class="nb">str</span> <span class="k">else</span> <span class="n">authstr</span><span class="p">}</span>
+    <span class="k">return</span> <span class="n">OAuth2Request</span><span class="p">(</span><span class="n">headers</span> <span class="o">=</span> <span class="n">headers</span><span class="p">,</span>
+                         <span class="n">access_token</span> <span class="o">=</span> <span class="n">access_token</span><span class="p">,</span>
+                         <span class="n">expires_in_seconds</span> <span class="o">=</span> <span class="n">json_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;expires_in&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+                         <span class="n">refresh_token</span> <span class="o">=</span> <span class="n">json_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;refresh_token&#39;</span><span class="p">),</span>
+                         <span class="n">creation_time</span> <span class="o">=</span> <span class="n">creation_time</span><span class="p">)</span>
+
+<div class="viewcode-block" id="OAuth2PasswordService"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.oauth.service.OAuth2PasswordService">[docs]</a><span class="k">class</span> <span class="nc">OAuth2PasswordService</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;Generates an OAuth2 password service request.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">GRANT_TYPE</span> <span class="o">=</span> <span class="s">&#39;password&#39;</span>
+    
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">configuration</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Initializes an OAuth2PasswordService object.</span>
+
+<span class="sd">        :param configuration: The configuration required by the OAuth2PasswordService object.</span>
+<span class="sd">        :type configuration: dict</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__configuration</span> <span class="o">=</span> <span class="n">configuration</span>
+
+<div class="viewcode-block" id="OAuth2PasswordService.generateRequest"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.oauth.service.OAuth2PasswordService.generateRequest">[docs]</a>    <span class="k">def</span> <span class="nf">generateRequest</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">username</span> <span class="o">=</span> <span class="bp">None</span><span class="p">,</span> <span class="n">password</span> <span class="o">=</span> <span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Creates and returns a signature that can be used with a OAuth2 request with a password grant-type.</span>
+
+<span class="sd">        :param username: The username required for authentication.</span>
+<span class="sd">        :type username: str</span>
+<span class="sd">        :param password: The password required for authentication.</span>
+<span class="sd">        :type password: str</span>
+<span class="sd">        :returns: An object that represents an OAuth2 signature.</span>
+<span class="sd">        :rtype: class:`learningstudio.oauth.request.OAuth2Request`</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">uname</span> <span class="o">=</span> <span class="n">quote_plus</span><span class="p">(</span><span class="n">client_string</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__configuration</span><span class="p">)</span> <span class="o">+</span> <span class="s">&#39;</span><span class="se">\\</span><span class="s">&#39;</span> <span class="o">+</span> <span class="n">username</span><span class="p">)</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="s">&#39;grant_type=</span><span class="si">%s</span><span class="s">&amp;client_id=</span><span class="si">%s</span><span class="s">&amp;username=</span><span class="si">%s</span><span class="s">&amp;password=</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">OAuth2PasswordService</span><span class="o">.</span><span class="n">GRANT_TYPE</span><span class="p">,</span>
+                                                                       <span class="n">quote_plus</span><span class="p">(</span><span class="n">application_id</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__configuration</span><span class="p">)),</span>
+                                                                       <span class="n">uname</span><span class="p">,</span>
+                                                                       <span class="n">quote_plus</span><span class="p">(</span><span class="n">password</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">make_oauth2request</span><span class="p">(</span><span class="n">OAUTH_URL</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="OAuth2PasswordService.refreshOAuth2PasswordRequest"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.oauth.service.OAuth2PasswordService.refreshOAuth2PasswordRequest">[docs]</a>    <span class="k">def</span> <span class="nf">refreshOAuth2PasswordRequest</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">last_request</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Refreshes the OAuth2 signature.</span>
+
+<span class="sd">        :param last_request: The signature generated by the last call to :func:`learningstudio.oauth.service.OAuth2PasswordService.generateRequest` or :func:`learningstudio.oauth.service.OAuth2PasswordService.refreshOAuth2PasswordRequest`.</span>
+<span class="sd">        :type last_request: OAuth2Request</span>
+<span class="sd">        :returns: A newly generated signature.</span>
+<span class="sd">        :rtype: :class:`learningstudio.oauth.request.OAuth2Request`</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">grant_type</span> <span class="o">=</span> <span class="s">&#39;refresh_token&#39;</span>
+        <span class="n">appid</span> <span class="o">=</span> <span class="n">application_id</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__configuration</span><span class="p">)</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="s">&#39;grant_type=</span><span class="si">%s</span><span class="s">&amp;client_id=</span><span class="si">%s</span><span class="s">&amp;refresh_token=</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">grant_type</span><span class="p">,</span>
+                                                                <span class="n">appid</span><span class="p">,</span>
+                                                                <span class="n">last_request</span><span class="o">.</span><span class="n">getRefreshToken</span><span class="p">(),)</span>
+        <span class="k">return</span> <span class="n">make_oauth2request</span><span class="p">(</span><span class="n">OAUTH_URL</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span>
+</div></div>
+<div class="viewcode-block" id="OAuth2AssertionService"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.oauth.service.OAuth2AssertionService">[docs]</a><span class="k">class</span> <span class="nc">OAuth2AssertionService</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;Generates an Oauth2 Assertion service request.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">GRANT_TYPE</span> <span class="o">=</span> <span class="s">&#39;assertion&#39;</span>
+    <span class="n">ASSERTION_TYPE</span> <span class="o">=</span> <span class="s">&#39;urn:ecollege:names:moauth:1.0:assertion&#39;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">configuration</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Initializes a new OAuth2AssertionService object.</span>
+
+<span class="sd">        :param configuration: The configuration required by the new object.</span>
+<span class="sd">        :type configuration: dict</span>
+<span class="sd">        </span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__configuration</span> <span class="o">=</span> <span class="n">configuration</span>
+
+<div class="viewcode-block" id="OAuth2AssertionService.generateRequest"><a class="viewcode-back" href="../../../doc/code.html#learningstudio.oauth.service.OAuth2AssertionService.generateRequest">[docs]</a>    <span class="k">def</span> <span class="nf">generateRequest</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">username</span> <span class="o">=</span> <span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Creates and returns a signature that can be used with an OAuth2 request with the assertion grant-type.</span>
+
+<span class="sd">        :param username: The username required for authentication.</span>
+<span class="sd">        :type username: str</span>
+<span class="sd">        :returns: An object that represents an OAuth2 assertion request signature.</span>
+<span class="sd">        :rtype: :class:`learningstudio.oauth.request.OAuth2Request`</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">assertion</span> <span class="o">=</span> <span class="n">build_assertion</span><span class="p">(</span><span class="n">application_name</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__configuration</span><span class="p">),</span> 
+                                    <span class="n">consumer_key</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__configuration</span><span class="p">),</span>
+                                    <span class="n">application_id</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__configuration</span><span class="p">),</span> 
+                                    <span class="n">client_string</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__configuration</span><span class="p">),</span>
+                                    <span class="n">username</span><span class="p">,</span>
+                                    <span class="n">consumer_secret</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__configuration</span><span class="p">))</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="s">&#39;grant_type=</span><span class="si">%s</span><span class="s">&amp;assertion_type=</span><span class="si">%s</span><span class="s">&amp;assertion=</span><span class="si">%s</span><span class="s">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">OAuth2AssertionService</span><span class="o">.</span><span class="n">GRANT_TYPE</span><span class="p">,</span>
+                                                                 <span class="n">quote_plus</span><span class="p">(</span><span class="n">OAuth2AssertionService</span><span class="o">.</span><span class="n">ASSERTION_TYPE</span><span class="p">),</span>
+                                                                 <span class="n">quote_plus</span><span class="p">(</span><span class="n">assertion</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">make_oauth2request</span><span class="p">(</span><span class="n">OAUTH_URL</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span></div></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../../../index.html">LearningStudio API 1.0 documentation</a> &raquo;</li>
+          <li><a href="../../index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2014, Pearson.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.2.
+    </div>
+  </body>
+</html>
